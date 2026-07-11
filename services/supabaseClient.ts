@@ -1,11 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, Post, Group, ChatMessage, PostVisibility, ReactionType, SafetyReport, GrowPlant, Story, GameScore, Strain, StrainPhoto, StrainReview, StrainChatMessage, PostComment, ReportCategory, MatchItInteraction } from '../types';
 
-// Environment variables provided by user
-const SUPABASE_URL = 'https://fbkkrilojuwzjupbscdt.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZia2tyaWxvanV3emp1cGJzY2R0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2MTA4NDYsImV4cCI6MjA3OTE4Njg0Nn0.NdNwGX_M2RZHxvTzSEIcqMbxO6QMsmjKYd0-h7_aie4';
+const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error(
+    'Missing Supabase environment variables. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.'
+  );
+}
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   db: {
     schema: 'StrainVerse',
   },
@@ -24,6 +29,7 @@ export const auth = {
                     name,
                     handle,
                     date_of_birth: dob,
+                    site: 'StrainVerse',
                 }
             }
         });
