@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StrainVerse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=Poppins:wght@700;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        /* StrainVerse Theme */
+        --bg-main: #0a0a0a;
+        --bg-card: #121212;
+        --bg-input: #1a1a1a;
+        --bg-hover: #222222;
+        
+        --text-main: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #808080;
+        
+        --border: #2a2a2a;
+        --border-strong: #404040;
+        
+        /* Palette from Branding Direction */
+        --forest-green: #225F41;
+        --indica-purple: #553B7C;
+        --sunset-hybrid: #E86A61;
+        --smoke-gray: #2A2A2A;
+
+        /* Primary Accent using Forest Green */
+        --accent: var(--forest-green);
+        --accent-hover: #2E8057;
+        --accent-light: rgba(34, 95, 65, 0.1);
+
+        --font-heading: 'Poppins', sans-serif;
+        
+        /* Gradients */
+        --gradient-main: linear-gradient(135deg, var(--forest-green) 0%, var(--indica-purple) 50%, var(--sunset-hybrid) 100%);
+        
+        --shadow-color: rgba(34, 95, 65, 0.5);
+      }
+
+      @keyframes smoky-background {
+        0% { background-position: 0% 50%; opacity: 0.8; }
+        50% { background-position: 100% 50%; opacity: 1; }
+        100% { background-position: 0% 50%; opacity: 0.8; }
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes breathing-glow {
+        0% { box-shadow: 0 0 15px rgba(34, 95, 65, 0.4); }
+        50% { box-shadow: 0 0 25px rgba(34, 95, 65, 0.6); }
+        100% { box-shadow: 0 0 15px rgba(34, 95, 65, 0.4); }
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-main);
+        background-image: linear-gradient(125deg, #000000 0%, #0c1a04 25%, #190f1d 50%, #000000 100%);
+        background-size: 400% 400%;
+        color: var(--text-main);
+        animation: smoky-background 30s ease infinite;
+      }
+
+      h1, h2, h3, h4, h5, h6 {
+        font-family: var(--font-heading);
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-card);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-strong);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--accent);
+      }
+      
+      .neon-text-glow {
+        text-shadow: 0 0 10px rgba(34, 95, 65, 0.7);
+      }
+
+      /* Profile Standard Styles */
+      .ys-profile-root {
+        background-color: #0a0a0a;
+        color: #f0f0f0;
+        font-family: 'Inter', sans-serif;
+        background-image: radial-gradient(circle at 50% 0%, rgba(34, 95, 65, 0.2) 0%, #0a0a0a 60%);
+      }
+      .ys-header {
+        border-bottom: 1px solid var(--border-strong);
+      }
+      .ys-name {
+        color: var(--text-main);
+        font-weight: 900;
+      }
+      .ys-avatar {
+        border: 3px solid var(--border-strong);
+      }
+      .ys-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+      }
+      .ys-widget-title {
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 0.8rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+      }
+      .ys-bio {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.39.3"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

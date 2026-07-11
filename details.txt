@@ -1,0 +1,128 @@
+# StrainVerse Application Documentation
+
+## 1. Project Overview
+**Name:** StrainVerse
+**Tagline:** "The Universe of Strains, Powered by You."
+**Description:** A niche social media platform built specifically for cannabis culture. It combines a community-sourced strain encyclopedia with social networking, location-based matching, and group chats.
+
+## 2. Technical Stack
+*   **Frontend:** React 19, TypeScript, Vite.
+*   **Styling:** Tailwind CSS, Lucide React (Icons), Custom CSS Variables for theming.
+*   **Backend:** Supabase (PostgreSQL, Auth, Realtime, Storage).
+
+## 3. Navigation Structure (The 5 Pillars)
+The application is divided into five distinct views, accessible via a sidebar (desktop) or bottom nav (mobile):
+
+1.  **StrainVerse:** The strain database and encyclopedia.
+2.  **HerbHub:** The global and local social feed.
+3.  **MatchIt:** A Tinder-style location-based discovery feature (Age-gated 21+).
+4.  **SocialSesh:** Group chat and community management.
+5.  **My Stash:** User profile and statistics.
+
+---
+
+## 4. Feature Breakdown
+
+### A. StrainVerse (The Directory)
+A community-driven database of cannabis strains.
+*   **Search & Filter:** Users can search by name, flavor, or effect. Tabs filter by Sativa, Indica, or Hybrid.
+*   **Trending:** Automatically calculates top strains based on interaction volume.
+*   **Strain Profiles:**
+    *   **Context Switcher:** Users toggle between **Flower** and **Concentrate** forms to view data specific to that consumption method.
+    *   **Stats:** Displays THC/CBD ranges, genetics, effects, and flavors.
+    *   **Logging:** Users mark strains as "Smoked" (Flower) or "Dabbed" (Concentrate).
+    *   **Live Chat:** A real-time, optimistic chat room dedicated to that specific strain.
+    *   **Gallery:** User-uploaded photos with optional "Brand" tagging.
+    *   **Reviews:** 5-star rating system with text reviews.
+
+### B. HerbHub (The Feed)
+The main social timeline ("Highline").
+*   **Posting:** Users can post text and images.
+*   **Metadata:** Posts can include "High Level" (0-10), "Mood" (Emoji), "Strain" name, and "Soundtrack".
+*   **Stories:** Ephemeral photo updates displayed at the top.
+*   **Reactions:** Custom reactions: Like, Fire, High AF, Weak, Felt This, Bruh, etc.
+
+### C. MatchIt (Social Discovery)
+A feature to find local smoking buddies.
+*   **Age Gate:** strictly restricted to users 21+.
+*   **Location Based:** Filters posts by the user's City and State.
+*   **The Feed (Find Vibe):** Users post "Match Cards" with a duration (e.g., "Expires in 24 hours") and intent (e.g., "Looking to sesh").
+*   **Interactions:**
+    *   **Tap:** A casual nudge/message.
+    *   **Spark:** A high-interest signal.
+*   **Matching:** If two users interact positively, a private "Match" group chat is created.
+*   **Safety:** Built-in blocking and reporting (categories: Suspicious, Underage, Selling, etc.).
+
+### D. SocialSesh (Groups)
+*   **Group Types:** Public, Friends-Only, Family-Only, and Match (private 1-on-1).
+*   **Chat:** Real-time messaging with support for avatars and optimistic UI updates.
+*   **Voice/Video:** UI simulation for active calls.
+
+### E. My Stash (Profile)
+*   **Stats:** Tracks Posts, Friend count, and Unique Strains Tried.
+*   **Badges:** Gamification elements (e.g., "First Toke").
+*   **Customization:**
+    *   Users can write custom CSS and JS to style their profile.
+*   **Widgets:** Support for embedding YouTube videos, Images, or Text blocks.
+
+---
+
+## 6. Database Schema (Supabase)
+
+### Core Tables
+*   `profiles`: User data, custom CSS/JS, location, stats.
+*   `posts`: Content, visibility, metadata (strain, high_level), geolocation.
+*   `post_reactions` & `post_comments`: Social interactions.
+*   `stories`: Ephemeral image posts.
+*   `relationships`: Friend/Family connections.
+*   `blocks` & `reports`: Safety mechanisms.
+
+### StrainVerse Tables
+*   `strains`: Static data (genetics, effects).
+*   `user_strain_log`: Tracks user usage (Smoked vs. Dabbed).
+*   `strain_reviews`: User ratings/text.
+*   `strain_photos`: User images with brand tags.
+*   `strain_chat_messages`: Real-time chat per strain.
+
+### MatchIt & Groups
+*   `matchit_interactions`: Tracks Taps/Sparks between users.
+*   `groups`: Chat rooms.
+*   `messages`: Messages within groups.
+
+### Storage
+*   **Bucket:** `StrainVerse`
+*   **Folders:**
+    *   Root: Strain photos.
+    *   `posts/`: Feed post images.
+    *   `stories/`: Story images.
+
+---
+
+## 7. Design System & Look and Feel
+
+### Color Palette (CSS Variables)
+*   **Backgrounds:**
+    *   Main: `#0a0a0a` (Deep Black)
+    *   Card: `#121212` (Off-Black)
+    *   Input: `#1a1a1a` (Dark Grey)
+    *   Hover: `#222222`
+*   **Text:**
+    *   Main: `#f0f0f0` (Off-White)
+    *   Secondary: `#c0c0c0` (Light Grey)
+    *   Muted: `#808080` (Mid Grey)
+*   **Brand Colors:**
+    *   **Forest Green (Primary Accent):** `#225F41` - Used for buttons, active states, and success indicators.
+    *   **Indica Purple (Secondary):** `#553B7C` - Used for specific strain types, badges, and gradients.
+    *   **Sunset Hybrid (Highlight):** `#E86A61` - Used for accents, gradients, and alerts.
+    *   **MatchIt Orange:** Used specifically for the social discovery feature (Fire/Hot interactions).
+
+### Visual Aesthetic
+*   **Smoky Atmosphere:** The application features a subtle, animated CSS background (`smoky-background`) that drifts slowly, simulating smoke in a dark room.
+*   **Glassmorphism:** Extensive use of `backdrop-blur` on modals, headers, and floating action bars to create depth and a modern, premium feel.
+*   **Neon Glows:** Text shadows and box shadows often utilize specific color glows (Green, Purple) to mimic neon signage or bioluminescence.
+*   **Rounded Geometry:** UI elements (Cards, Buttons, Inputs) use generous border-radii (`rounded-xl`, `rounded-full`) for a friendly, organic touch.
+*   **Dark Mode Only:** The app is strictly dark mode to reduce eye strain and enhance the "nightlife/lounge" vibe.
+*   **Typography:**
+    *   **Headings:** 'Poppins' (Bold/Black weights) - Modern and impactful.
+    *   **Body:** 'Inter' - Clean and highly readable.
+    *   **Code/Monospace:** 'Fira Code' - Used for editors and tech-style elements.

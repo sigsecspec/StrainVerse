@@ -1,0 +1,8 @@
+{
+  "name": "StrainVerse",
+  "description": "A stoner-first social network centered around strains, smoke culture, and community conversations. Explore the weed world through strain pages, chats, and community posts.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}
