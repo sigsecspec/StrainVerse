@@ -484,8 +484,6 @@ export const api = {
   },
 
   createPost: async (userId: string, content: string, visibility: PostVisibility, image?: string | null, lat?: number, lng?: number, groupId?: string, strain?: string, highLevel?: number, soundtrack?: string, isMatchIt?: boolean, mood?: string, matchLookingFor?: string, matchExpiresAt?: string) => {
-    // Removed AI content moderation
-
     const payload: any = { user_id: userId, content, image: image || null, visibility, latitude: lat, longitude: lng, strain: strain || null, high_level: highLevel || 0, soundtrack: soundtrack || null, is_matchit: isMatchIt || false, mood: mood || null, match_looking_for: matchLookingFor || null, match_expires_at: matchExpiresAt || null };
     if (groupId) payload.group_id = groupId;
     const { error } = await strainVerse().from('posts').insert([payload]);
