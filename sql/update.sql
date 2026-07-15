@@ -1,7 +1,72 @@
 -- StrainVerse Database Schema (shared Verse Supabase project)
 -- Run in Supabase SQL Editor on https://vxahlxhrmypxxkrudqbd.supabase.co
+--
+-- IMPORTANT: Schema name is case-sensitive: "StrainVerse" (not strainverse).
+-- After this script runs, verify Dashboard -> Project Settings -> Data API ->
+-- Exposed schemas includes StrainVerse alongside public/Cookbook/etc.
 
 create schema if not exists "StrainVerse";
+
+-- Registers a custom schema with PostgREST (Supabase Data API).
+-- Preserves exact schema casing and appends to existing exposed schemas.
+create or replace function public.register_app_schema(app_schema text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  config_entry text;
+  db_schemas text := 'public';
+  schema_parts text[];
+  schema_part text;
+  already_listed boolean := false;
+begin
+  if app_schema is null or length(trim(app_schema)) = 0 then
+    raise exception 'register_app_schema: schema name is required';
+  end if;
+
+  if not exists (select 1 from pg_namespace where nspname = app_schema) then
+    raise exception 'Invalid schema "%". Create it first: create schema if not exists "%";', app_schema, app_schema;
+  end if;
+
+  for config_entry in
+    select unnest(rolconfig)
+    from pg_roles
+    where rolname = 'authenticator'
+  loop
+    if config_entry like 'pgrst.db_schemas=%' then
+      db_schemas := substring(config_entry from 'pgrst.db_schemas=(.*)$');
+    end if;
+  end loop;
+
+  schema_parts := string_to_array(db_schemas, ',');
+  foreach schema_part in array schema_parts loop
+    if trim(schema_part) = app_schema then
+      already_listed := true;
+      exit;
+    end if;
+  end loop;
+
+  if not already_listed then
+    db_schemas := trim(both ',' from db_schemas || ',' || app_schema);
+    execute format('alter role authenticator set pgrst.db_schemas = %L', db_schemas);
+    perform pg_notify('pgrst', 'reload config');
+  end if;
+
+  execute format('grant usage on schema %I to anon, authenticated, service_role', app_schema);
+  execute format('grant all on all tables in schema %I to anon, authenticated, service_role', app_schema);
+  execute format('grant all on all sequences in schema %I to anon, authenticated, service_role', app_schema);
+  execute format('grant all on all routines in schema %I to anon, authenticated, service_role', app_schema);
+  execute format('alter default privileges in schema %I grant all on tables to anon, authenticated, service_role', app_schema);
+  execute format('alter default privileges in schema %I grant all on sequences to anon, authenticated, service_role', app_schema);
+  execute format('alter default privileges in schema %I grant all on routines to anon, authenticated, service_role', app_schema);
+
+  return db_schemas;
+end;
+$$;
+
+grant execute on function public.register_app_schema(text) to authenticated, service_role;
 
 -- CORE TABLES --
 
@@ -319,10 +384,20 @@ create policy "Users can manage their own blocks." on "StrainVerse".blocks for a
 -- Create ENUM types for interactions
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'matchit_interaction_type') THEN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE n.nspname = 'StrainVerse' AND t.typname = 'matchit_interaction_type'
+    ) THEN
         CREATE TYPE "StrainVerse"."matchit_interaction_type" AS ENUM ('TAP', 'SPARK');
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'matchit_interaction_status') THEN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE n.nspname = 'StrainVerse' AND t.typname = 'matchit_interaction_status'
+    ) THEN
         CREATE TYPE "StrainVerse"."matchit_interaction_status" AS ENUM ('PENDING', 'MATCHED', 'DECLINED');
     END IF;
 END$$;
@@ -364,7 +439,12 @@ alter table "StrainVerse".posts add column if not exists match_expires_at timest
 -- Create ENUM type for user roles
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE n.nspname = 'StrainVerse' AND t.typname = 'user_role'
+    ) THEN
         CREATE TYPE "StrainVerse"."user_role" AS ENUM ('User', 'Bud Tender', 'Moderator', 'Administrator', 'Manager', 'Director');
     END IF;
 END$$;
@@ -521,9 +601,13 @@ BEGIN
 END $$;
 
 -- PERMISSIONS --
-grant usage on schema "StrainVerse" to anon, authenticated;
-grant select, insert, update, delete on all tables in schema "StrainVerse" to authenticated;
+grant usage on schema "StrainVerse" to anon, authenticated, service_role;
+grant select, insert, update, delete on all tables in schema "StrainVerse" to authenticated, service_role;
 grant select on all tables in schema "StrainVerse" to anon;
+grant all on all sequences in schema "StrainVerse" to authenticated, service_role;
+grant all on all routines in schema "StrainVerse" to authenticated, service_role;
+alter default privileges in schema "StrainVerse" grant select, insert, update, delete on tables to authenticated, service_role;
+alter default privileges in schema "StrainVerse" grant select on tables to anon;
 
 -- SYNC EXISTING AUTH USERS --
 -- This block pulls any existing users from auth.users and creates a profile for them if one doesn't exist.
@@ -541,5 +625,5 @@ FROM auth.users au
 LEFT JOIN "StrainVerse".profiles p ON au.id = p.id
 WHERE p.id IS NULL;
 
--- Register this app schema with the shared Verse Supabase project
-select register_app_schema('StrainVerse');
+-- Register this app schema with the shared Verse Supabase project (case-sensitive: StrainVerse)
+select public.register_app_schema('StrainVerse');
