@@ -113,7 +113,7 @@ export const formatSupabaseError = (error: { message?: string; code?: string } |
     msg.toLowerCase().includes('schema cache') ||
     msg.toLowerCase().includes('could not query the database')
   ) {
-    return 'Database API schema error. In Supabase SQL Editor run: select public.repair_postgrest_schemas(\'StrainVerse\'); then reload the app.';
+    return 'Database API schema error. In Supabase SQL Editor run the full sql/repair-postgrest.sql file, then reload the app.';
   }
   if (msg.toLowerCase().includes('permission denied') || error.code === '42501') {
     return 'Database permission error. Re-run sql/complete-setup.sql in Supabase.';

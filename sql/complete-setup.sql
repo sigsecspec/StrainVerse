@@ -11,8 +11,10 @@
 -- After running, verify Dashboard -> Project Settings -> Data API ->
 -- Exposed schemas only lists schemas that exist (include StrainVerse, remove strain).
 --
--- Quick fix for "could not query schema cache" only:
---   select public.repair_postgrest_schemas('StrainVerse');
+-- Quick fix for "could not query schema cache" / login broken:
+--   Run sql/repair-postgrest.sql (entire file — do not run only the SELECT line)
+--
+-- Full app tables/policies: run this entire complete-setup.sql file
 
 create schema if not exists "StrainVerse";
 
