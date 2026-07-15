@@ -1,1 +1,10 @@
-ûã
+-- This file previously contained corrupted/binary content and was not a valid SQL script.
+--
+-- The canonical, up-to-date database schema for StrainVerse now lives in:
+--   sql/update.sql   (targets the shared "Verse" Supabase project used by services/supabaseClient.ts)
+--
+-- Run that file in the Supabase SQL Editor to (re)provision the "StrainVerse" schema,
+-- tables, RLS policies, views, triggers, and storage policies.
+--
+-- sql.txt contains an earlier, standalone-project version of the same schema and is kept
+-- for historical reference only; prefer sql/update.sql for setup.

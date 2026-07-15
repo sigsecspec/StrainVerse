@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { User, Post, Group, ChatMessage, PostVisibility, ReactionType, SafetyReport, GrowPlant, Story, GameScore, Strain, StrainPhoto, StrainReview, StrainChatMessage, PostComment, ReportCategory, MatchItInteraction } from '../types';
+import { User, Post, Group, ChatMessage, PostVisibility, ReactionType, SafetyReport, GrowPlant, Story, GameScore, Strain, StrainPhoto, StrainReview, StrainChatMessage, PostComment, ReportCategory, MatchItInteraction, Widget } from '../types';
 
 const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -158,6 +158,17 @@ export const api = {
       .eq('id', userId);
     if (error) {
       console.error("Error updating profile theme:", error);
+      throw error;
+    }
+  },
+
+  updateWidgets: async (userId: string, widgets: Widget[]) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ widgets })
+      .eq('id', userId);
+    if (error) {
+      console.error("Error updating widgets:", error);
       throw error;
     }
   },

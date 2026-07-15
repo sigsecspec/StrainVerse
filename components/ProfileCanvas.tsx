@@ -1,8 +1,10 @@
 // Fix: Corrected malformed import statement
 import React, { useState } from 'react';
 import { User, Widget, Post, Strain, ReactionType } from '../types';
-import { MessageSquare, Heart, Share2, ThumbsDown, Flame, FileText, Users, Sprout, MapPin, Cigarette, Leaf as LeafIcon, Settings, ThumbsUp } from 'lucide-react';
+import { MessageSquare, Heart, Share2, ThumbsDown, Flame, FileText, Users, Sprout, MapPin, Cigarette, Leaf as LeafIcon, Settings, ThumbsUp, LayoutGrid } from 'lucide-react';
 import ProfileSettingsModal from './ProfileSettingsModal';
+import ProfileCustomization from './ProfileCustomization';
+import WidgetsModal from './WidgetsModal';
 import { api } from '../services/supabaseClient';
 
 interface ProfileCanvasProps {
@@ -69,11 +71,18 @@ const StatCard: React.FC<{ icon: React.ElementType; label: string; value: string
 const ProfileCanvas: React.FC<ProfileCanvasProps> = ({ user, posts, isOwner, friendCount, triedStrains, refreshUser, onReaction }) => {
   const [activeTab, setActiveTab] = useState('Posts');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isWidgetsModalOpen, setIsWidgetsModalOpen] = useState(false);
 
   const handleSaveSettings = async (updates: Partial<User>) => {
     await api.updateProfile(user.id, updates);
     await refreshUser();
     setIsSettingsOpen(false);
+  }
+
+  const handleSaveWidgets = async (widgets: Widget[]) => {
+    await api.updateWidgets(user.id, widgets);
+    await refreshUser();
+    setIsWidgetsModalOpen(false);
   }
   
   const reactionsToDisplay: ReactionType[] = ['THUMBS_UP', 'LIKE', 'FIRE', 'DISLIKE'];
@@ -113,6 +122,8 @@ const ProfileCanvas: React.FC<ProfileCanvasProps> = ({ user, posts, isOwner, fri
   return (
     <div className="relative min-h-screen w-full">
       {isSettingsOpen && <ProfileSettingsModal user={user} onSave={handleSaveSettings} onClose={() => setIsSettingsOpen(false)} />}
+      {isWidgetsModalOpen && <WidgetsModal widgets={user.widgets || []} onSave={handleSaveWidgets} onClose={() => setIsWidgetsModalOpen(false)} />}
+      {isOwner && <ProfileCustomization user={user} isOwner={isOwner} refreshUser={refreshUser} />}
 
       {/* The Canvas Root - CSS Targets This */}
       <div className="ys-profile-root p-4 md:p-8 max-w-7xl mx-auto">
@@ -202,6 +213,15 @@ const ProfileCanvas: React.FC<ProfileCanvasProps> = ({ user, posts, isOwner, fri
             {(user.widgets || []).map(w => (
               <WidgetRenderer key={w.id} widget={w} />
             ))}
+
+            {isOwner && (
+              <button
+                onClick={() => setIsWidgetsModalOpen(true)}
+                className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-dashed border-white/20 text-sm font-bold py-3 rounded-xl transition-colors text-white/70 hover:text-white"
+              >
+                <LayoutGrid size={16} /> Manage Widgets
+              </button>
+            )}
           </aside>
 
           {/* Main Feed */}
