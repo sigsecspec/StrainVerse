@@ -9,7 +9,10 @@
 --   - `StrainVerse` schema may already exist (this script will create it if missing)
 --
 -- After running, verify Dashboard -> Project Settings -> Data API ->
--- Exposed schemas includes StrainVerse (exact casing, not strainverse).
+-- Exposed schemas only lists schemas that exist (include StrainVerse, remove strain).
+--
+-- Quick fix for "could not query schema cache" only:
+--   select public.repair_postgrest_schemas('StrainVerse');
 
 create schema if not exists "StrainVerse";
 
@@ -689,7 +692,6 @@ END $$;
 grant usage on schema "StrainVerse" to anon, authenticated, service_role;
 grant select, insert, update, delete on all tables in schema "StrainVerse" to authenticated, service_role;
 grant select on all tables in schema "StrainVerse" to anon;
-grant select on "StrainVerse".strains_with_stats to anon, authenticated, service_role;
 grant all on all sequences in schema "StrainVerse" to authenticated, service_role;
 grant all on all routines in schema "StrainVerse" to authenticated, service_role;
 alter default privileges in schema "StrainVerse" grant select, insert, update, delete on tables to authenticated, service_role;
