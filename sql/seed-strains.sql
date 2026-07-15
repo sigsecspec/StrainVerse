@@ -1,5 +1,6 @@
--- StrainVerse — full strain encyclopedia seed
+-- StrainVerse — full strain encyclopedia seed (~100 cultivars)
 -- Run in Supabase SQL Editor after sql/complete-setup.sql
+-- For 500+ more: run sql/seed-strains-extended.sql
 -- Safe to re-run: ON CONFLICT (name) DO UPDATE refreshes metadata
 
 insert into "StrainVerse".strains
