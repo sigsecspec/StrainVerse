@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Strain } from '../types';
 import { api } from '../services/supabaseClient';
-import { Search, Sprout, Star, Users, Image as ImageIcon, Loader2, Zap, Flame, Diamond, LayoutGrid, List } from 'lucide-react';
+import { Search, Sprout, Star, Image as ImageIcon, Loader2, Flame, Diamond, LayoutGrid, List } from 'lucide-react';
 
 interface StrainVerseDirectoryProps {
   onStrainSelect: (strain: Strain) => void;
@@ -103,8 +103,12 @@ const StrainVerseDirectory: React.FC<StrainVerseDirectoryProps> = ({ onStrainSel
     window.localStorage.setItem(VIEW_MODE_KEY, viewMode);
   }, [viewMode]);
 
-  const trendingStrains = useMemo(() => {
-    return [...strains].sort((a, b) => (b.review_count || 0) - (a.review_count || 0)).slice(0, 5);
+  const mostReviewedStrains = useMemo(() => {
+    const reviewed = strains.filter((s) => (s.review_count || 0) > 0);
+    if (reviewed.length === 0) return [];
+    return reviewed
+      .sort((a, b) => (b.review_count || 0) - (a.review_count || 0))
+      .slice(0, 5);
   }, [strains]);
 
   useEffect(() => {
@@ -224,17 +228,20 @@ const StrainVerseDirectory: React.FC<StrainVerseDirectoryProps> = ({ onStrainSel
         </div>
       ) : (
         <>
-            {/* Trending Section */}
-            {!searchTerm && (
+            {/* Most reviewed — only shown once the community has left reviews */}
+            {!searchTerm && mostReviewedStrains.length > 0 && (
                 <div className="my-6">
-                    <div className="flex items-center justify-between gap-3 mb-4">
-                      <h2 className="text-xl font-bold flex items-center gap-2"><Zap size={20} className="text-yellow-400" /> Trending Strains</h2>
+                    <div className="mb-4">
+                      <h2 className="text-xl font-bold flex items-center gap-2">
+                        <Star size={20} className="text-yellow-400" /> Most Reviewed
+                      </h2>
+                      <p className="text-sm text-[var(--text-muted)] mt-1">Top strains by community reviews.</p>
                     </div>
                     <div className={viewMode === 'grid'
                       ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'
                       : 'flex flex-col gap-2'
                     }>
-                        {trendingStrains.map(strain => renderStrain(strain))}
+                        {mostReviewedStrains.map(strain => renderStrain(strain))}
                     </div>
                 </div>
             )}

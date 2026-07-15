@@ -125,7 +125,7 @@ MatchIt is hidden from sidebar and bottom nav unless `userAge >= 21`.
 
 - **Search** — by strain name, flavor, or effect (client-side filter)
 - **Tabs** — All, Sativa, Indica, Hybrid
-- **Trending** — top 5 strains by `review_count`
+- **Most Reviewed** — top 5 strains by `review_count` (hidden until at least one review exists)
 - **Strain cards** — cover image, type badge, avg rating, photo count, smoked/dabbed indicators
 
 #### Strain profile
