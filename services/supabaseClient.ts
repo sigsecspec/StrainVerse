@@ -42,7 +42,7 @@ const generateUniqueHandle = async (baseHandle: string, userId: string): Promise
   const suffix = userId.replace(/-/g, '').slice(0, 8);
 
   for (let attempt = 0; attempt < 5; attempt++) {
-    const { data: existing } = await supabase
+    const { data: existing } = await strainVerse()
       .from('profiles')
       .select('id')
       .eq('handle', candidate)
@@ -61,7 +61,7 @@ const generateUniqueHandle = async (baseHandle: string, userId: string): Promise
 
 /** Ensures a StrainVerse profile exists for any shared Verse auth user (e.g. Cookbook signups). */
 const ensureStrainVerseProfile = async (authUser: AuthUser): Promise<{ ok: boolean; error?: string }> => {
-  const { data: existing } = await supabase
+  const { data: existing } = await strainVerse()
     .from('profiles')
     .select('id')
     .eq('id', authUser.id)
@@ -102,12 +102,18 @@ if (!isSupabaseConfigured) {
   );
 }
 
+export const STRAINVERSE_SCHEMA = 'StrainVerse';
+
 export const supabase = createClient(
   SUPABASE_URL || 'https://placeholder.supabase.co',
-  SUPABASE_PUBLISHABLE_KEY || 'placeholder'
+  SUPABASE_PUBLISHABLE_KEY || 'placeholder',
+  {
+    db: {
+      schema: STRAINVERSE_SCHEMA,
+    },
+  }
 );
 
-export const STRAINVERSE_SCHEMA = 'StrainVerse';
 export const strainVerse = () => supabase.schema(STRAINVERSE_SCHEMA);
 
 export const auth = {
@@ -257,7 +263,7 @@ export const api = {
     
     if (Object.keys(dbPayload).length === 0) return;
     
-    const { error } = await supabase
+    const { error } = await strainVerse()
       .from('profiles')
       .update(dbPayload)
       .eq('id', userId);
@@ -268,7 +274,7 @@ export const api = {
   },
 
   updateProfileTheme: async (userId: string, css: string, js: string) => {
-    const { error } = await supabase
+    const { error } = await strainVerse()
       .from('profiles')
       .update({ custom_css: css, custom_js: js })
       .eq('id', userId);
@@ -279,7 +285,7 @@ export const api = {
   },
 
   updateWidgets: async (userId: string, widgets: Widget[]) => {
-    const { error } = await supabase
+    const { error } = await strainVerse()
       .from('profiles')
       .update({ widgets })
       .eq('id', userId);
@@ -327,7 +333,7 @@ export const api = {
   },
 
   getBlockedUserIds: async (userId: string): Promise<string[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await strainVerse()
         .from('blocks')
         .select('blocker_id, blocked_id')
         .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
@@ -460,7 +466,7 @@ export const api = {
   },
 
   getCommentsForPost: async (postId: string): Promise<PostComment[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await strainVerse()
           .from('post_comments')
           .select('*, profiles(name, avatar)')
           .eq('post_id', postId)
@@ -483,7 +489,7 @@ export const api = {
   },
 
   addComment: async (postId: string, userId: string, content: string): Promise<PostComment | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await strainVerse()
           .from('post_comments')
           .insert({ post_id: postId, user_id: userId, content: content })
           .select('*, profiles(name, avatar)')
@@ -555,7 +561,7 @@ export const api = {
   },
 
   createGroup: async (name: string, description: string, type: 'PUBLIC' | 'FRIEND' | 'FAMILY', userId: string) => {
-    const { data, error } = await supabase
+    const { data, error } = await strainVerse()
       .from('groups')
       .insert({ name, description, type, members: [userId] })
       .select()
@@ -765,7 +771,7 @@ export const api = {
   // Gets all interactions related to a set of posts for the current user
   getInteractionsForPosts: async (postIds: string[], userId: string): Promise<MatchItInteraction[]> => {
       if (postIds.length === 0) return [];
-      const { data, error } = await supabase
+      const { data, error } = await strainVerse()
         .from('matchit_interactions')
         .select('*, sender:profiles!sender_id(name, avatar)')
         .in('post_id', postIds)
@@ -826,7 +832,7 @@ export const api = {
   },
 
   getTriedStrains: async (userId: string): Promise<Strain[]> => {
-    const { data: logData, error: logError } = await supabase
+    const { data: logData, error: logError } = await strainVerse()
         .from('user_strain_log')
         .select('strain_id')
         .eq('user_id', userId);
@@ -842,7 +848,7 @@ export const api = {
         return [];
     }
 
-    const { data: strainsData, error: strainsError } = await supabase
+    const { data: strainsData, error: strainsError } = await strainVerse()
         .from('strains_with_stats')
         .select('*')
         .in('id', strainIds);

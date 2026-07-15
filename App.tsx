@@ -141,6 +141,23 @@ const Header: React.FC<{ title: string, onBack?: () => void, currentView: AppVie
 };
 
 
+const SESSION_TIMEOUT_MS = 12000;
+
+const withTimeout = async <T,>(promise: Promise<T>, label: string): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+            () => reject(new Error(`${label} timed out after ${SESSION_TIMEOUT_MS}ms`)),
+            SESSION_TIMEOUT_MS
+        );
+    });
+    try {
+        return await Promise.race([promise, timeout]);
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+    }
+};
+
 // --- MAIN APP COMPONENT ---
 
 const App: React.FC = () => {
@@ -169,11 +186,15 @@ const App: React.FC = () => {
             return;
         }
         try {
-            const { data: { session } } = await auth.getSession();
+            const { data: { session } } = await withTimeout(auth.getSession(), 'Session check');
             if (session) {
-                const currentUser = await api.getCurrentUser();
-                setUser(currentUser);
-                if (currentUser) {
+                const currentUser = await withTimeout(api.getCurrentUser(), 'Profile load');
+                if (!currentUser) {
+                    await auth.signOut();
+                    setUser(null);
+                    setUserAge(null);
+                } else {
+                    setUser(currentUser);
                     setUserAge(calculateAge(currentUser.dateOfBirth));
                 }
             } else {
@@ -222,8 +243,9 @@ const App: React.FC = () => {
 
     useEffect(() => {
         checkSession();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-             checkSession();
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'INITIAL_SESSION') return;
+            checkSession();
         });
         return () => subscription.unsubscribe();
     }, []);
