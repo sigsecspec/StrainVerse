@@ -1,6 +1,7 @@
 import React from 'react';
 import AuthScreen from './AuthScreen';
-import { Sprout, Users, Search, Leaf, Star, MessageSquare } from 'lucide-react';
+import { Users, Search, Leaf, Star, MessageSquare } from 'lucide-react';
+import Logo from './Logo';
 
 interface LandingPageProps {
   onSuccess: () => void;
@@ -54,13 +55,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSuccess }) => {
             <div className="p-8 pt-16 pb-12 lg:flex-1 lg:p-12 xl:p-20 flex flex-col lg:justify-center items-center lg:items-start">
                 <div className="w-full max-w-lg text-center lg:text-left">
                     <div className="mb-12">
-                         <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
-                            <Sprout size={32} className="text-[var(--accent)]" />
-                            <h1 className="text-5xl md:text-6xl font-black text-white tracking-tighter">
-                                StrainVerse
-                            </h1>
+                         <div className="flex justify-center lg:justify-start mb-4">
+                            <Logo size="lg" titleClassName="text-5xl md:text-6xl tracking-tighter" />
                          </div>
-                        <p className="text-xl md:text-2xl text-white/70 font-medium mb-4">"The Universe of Strains, Powered by You."</p>
+                        <p className="text-xl md:text-2xl text-white/70 font-medium mb-4 lg:pl-[3.75rem]">"The Universe of Strains, Powered by You."</p>
                         <p className="text-md text-white/50 leading-relaxed">
                            Discover, discuss, and share your favorite strains. StrainVerse is a social network built for the culture, centered around a living, community-powered encyclopedia of cannabis.
                         </p>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Download, X, Share, Sprout, Monitor } from 'lucide-react';
+import { Download, X, Share, Monitor } from 'lucide-react';
+import { LogoMark } from './Logo';
 import {
   BeforeInstallPromptEvent,
   PWA_INSTALL_DISMISS_KEY,
@@ -117,12 +118,7 @@ const InstallPrompt: React.FC = () => {
         style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
       >
         <div className="p-4 flex items-start gap-3">
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(34, 95, 65, 0.2)', color: 'var(--accent)' }}
-          >
-            <Sprout size={24} />
-          </div>
+          <LogoMark size="lg" />
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-white text-sm">Install StrainVerse</h3>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>

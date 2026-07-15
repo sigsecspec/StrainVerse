@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Strain } from '../types';
 import { api } from '../services/supabaseClient';
 import { Search, Sprout, Star, Image as ImageIcon, Loader2, Flame, Diamond, LayoutGrid, List } from 'lucide-react';
+import Logo from './Logo';
 
 interface StrainVerseDirectoryProps {
   onStrainSelect: (strain: Strain) => void;
@@ -196,15 +197,7 @@ const StrainVerseDirectory: React.FC<StrainVerseDirectoryProps> = ({ onStrainSel
     <div className="p-4 pb-20 lg:pb-4">
       {/* Header and Search */}
       <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[var(--accent)]/20 rounded-lg flex items-center justify-center border border-[var(--border-strong)] relative shadow-md">
-             <Sprout className="text-[var(--accent)] z-10" size={20} />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black text-white">StrainVerse</h1>
-            <p className="text-[var(--text-muted)] text-sm -mt-1">The Universe of Strains, Powered by You.</p>
-          </div>
-        </div>
+        <Logo showTagline titleClassName="text-3xl" />
       </div>
       <div className="sticky top-0 bg-[var(--bg-main)]/80 backdrop-blur-sm z-10 py-4 -my-4">
           <div className="flex gap-2 mb-4">
