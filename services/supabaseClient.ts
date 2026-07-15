@@ -104,6 +104,23 @@ if (!isSupabaseConfigured) {
 
 export const STRAINVERSE_SCHEMA = 'StrainVerse';
 
+export const formatSupabaseError = (error: { message?: string; code?: string } | null | undefined): string => {
+  if (!error) return 'Unknown database error';
+  const msg = error.message || '';
+  if (
+    error.code === 'PGRST002' ||
+    error.code === 'PGRST106' ||
+    msg.toLowerCase().includes('schema cache') ||
+    msg.toLowerCase().includes('could not query the database')
+  ) {
+    return 'Database API schema error. In Supabase SQL Editor run: select public.repair_postgrest_schemas(\'StrainVerse\'); then reload the app.';
+  }
+  if (msg.toLowerCase().includes('permission denied') || error.code === '42501') {
+    return 'Database permission error. Re-run sql/complete-setup.sql in Supabase.';
+  }
+  return msg || 'Database request failed';
+};
+
 export const supabase = createClient(
   SUPABASE_URL || 'https://placeholder.supabase.co',
   SUPABASE_PUBLISHABLE_KEY || 'placeholder',
@@ -124,7 +141,7 @@ export const auth = {
             if (!provision.ok) {
                 return {
                     data: result.data,
-                    error: { message: provision.error || 'Could not set up your StrainVerse profile. Please try again.' } as typeof result.error,
+                    error: { message: formatSupabaseError({ message: provision.error }) } as typeof result.error,
                 };
             }
         }
@@ -229,17 +246,25 @@ export const api = {
 
     let { data, error } = await strainVerse().from('profiles').select('*').eq('id', session.user.id).maybeSingle();
     
+    if (error) {
+        console.error('Profile lookup failed:', error);
+        if (error.code === 'PGRST002' || error.code === 'PGRST106' || error.message?.toLowerCase().includes('schema cache')) {
+            throw new Error(formatSupabaseError(error));
+        }
+    }
+
     if (error || !data) {
         console.warn("Profile missing for authenticated user. Provisioning StrainVerse profile...");
         const provision = await ensureStrainVerseProfile(session.user);
         if (!provision.ok) {
-            console.error("Failed to provision profile:", provision.error);
-            return null;
+            throw new Error(provision.error || 'Could not create your StrainVerse profile.');
         }
         const retry = await strainVerse().from('profiles').select('*').eq('id', session.user.id).single();
-        if (retry.error || !retry.data) {
-            console.error("Failed to load profile after provisioning:", retry.error);
-            return null;
+        if (retry.error) {
+            throw new Error(formatSupabaseError(retry.error));
+        }
+        if (!retry.data) {
+            throw new Error('Profile was created but could not be loaded. Try again.');
         }
         data = retry.data;
     }

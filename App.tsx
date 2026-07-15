@@ -188,14 +188,17 @@ const App: React.FC = () => {
         try {
             const { data: { session } } = await withTimeout(auth.getSession(), 'Session check');
             if (session) {
-                const currentUser = await withTimeout(api.getCurrentUser(), 'Profile load');
-                if (!currentUser) {
+                try {
+                    const currentUser = await withTimeout(api.getCurrentUser(), 'Profile load');
+                    setUser(currentUser);
+                    if (currentUser) {
+                        setUserAge(calculateAge(currentUser.dateOfBirth));
+                    }
+                } catch (profileError) {
+                    console.error('Profile load failed during session check:', profileError);
                     await auth.signOut();
                     setUser(null);
                     setUserAge(null);
-                } else {
-                    setUser(currentUser);
-                    setUserAge(calculateAge(currentUser.dateOfBirth));
                 }
             } else {
                 setUser(null);

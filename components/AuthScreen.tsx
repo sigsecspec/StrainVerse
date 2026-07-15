@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { auth, api } from '../services/supabaseClient';
+import { auth, api, formatSupabaseError } from '../services/supabaseClient';
 import { Loader2, Sprout } from 'lucide-react';
 
 interface AuthScreenProps {
@@ -42,12 +42,14 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
       }
       onSuccess();
     } catch (err: any) {
-      const msg = err.message || "An error occurred";
+      const msg = err.message || formatSupabaseError(err) || "An error occurred";
       if (msg.toLowerCase().includes('invalid login credentials')) {
         setError('Invalid email or password. If you signed up on Cookbook, use the same credentials here.');
       } else if (msg.toLowerCase().includes('already registered')) {
         setError('This email is already registered. Sign in with your Cookbook or Verse password.');
         setIsLogin(true);
+      } else if (msg.toLowerCase().includes('schema cache') || msg.toLowerCase().includes('repair_postgrest_schemas')) {
+        setError(msg);
       } else {
         setError(msg);
       }

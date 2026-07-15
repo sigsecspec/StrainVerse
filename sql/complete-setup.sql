@@ -13,6 +13,71 @@
 
 create schema if not exists "StrainVerse";
 
+-- Repairs PostgREST exposed schemas (fixes PGRST002 / schema cache errors).
+-- Removes dropped schemas like strain/strainverse from pgrst.db_schemas.
+drop function if exists public.repair_postgrest_schemas(text);
+create or replace function public.repair_postgrest_schemas(required_schema text default 'StrainVerse')
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  config_entry text;
+  db_schemas text := 'public';
+  cleaned text;
+begin
+  for config_entry in
+    select unnest(rolconfig)
+    from pg_roles
+    where rolname = 'authenticator'
+  loop
+    if config_entry like 'pgrst.db_schemas=%' then
+      db_schemas := substring(config_entry from 'pgrst.db_schemas=(.*)$');
+    end if;
+  end loop;
+
+  cleaned := array_to_string(
+    array(
+      select distinct trim(part)
+      from unnest(string_to_array(db_schemas, ',')) as part
+      where trim(part) <> ''
+        and lower(trim(part)) not in ('pg_pgrst_no_exposed_schemas', 'strain', 'strainverse')
+        and exists (select 1 from pg_namespace n where n.nspname = trim(part))
+    ),
+    ','
+  );
+
+  if required_schema is not null
+     and exists (select 1 from pg_namespace where nspname = required_schema)
+     and not exists (
+       select 1
+       from unnest(string_to_array(cleaned, ',')) as existing(part)
+       where trim(existing.part) = required_schema
+     ) then
+    cleaned := trim(both ',' from coalesce(nullif(cleaned, ''), 'public') || ',' || required_schema);
+  end if;
+
+  if cleaned is null or cleaned = '' then
+    cleaned := 'public';
+    if required_schema is not null and exists (select 1 from pg_namespace where nspname = required_schema) then
+      cleaned := cleaned || ',' || required_schema;
+    end if;
+  end if;
+
+  execute format('alter role authenticator set pgrst.db_schemas = %L', cleaned);
+  perform pg_notify('pgrst', 'reload config');
+  perform pg_notify('pgrst', 'reload schema');
+
+  return cleaned;
+end;
+$$;
+
+grant execute on function public.repair_postgrest_schemas(text) to authenticated, service_role;
+
+-- Run repair immediately (safe if StrainVerse schema already exists)
+select public.repair_postgrest_schemas('StrainVerse');
+
 -- Registers a custom schema with PostgREST (Supabase Data API).
 -- Preserves exact schema casing and appends to existing exposed schemas.
 drop function if exists public.register_app_schema(text);
@@ -53,10 +118,8 @@ begin
       select distinct trim(part)
       from unnest(schema_parts) as part
       where trim(part) <> ''
-        and not (
-          app_schema = 'StrainVerse'
-          and lower(trim(part)) in ('strain', 'strainverse')
-        )
+        and lower(trim(part)) not in ('pg_pgrst_no_exposed_schemas', 'strain', 'strainverse')
+        and exists (select 1 from pg_namespace n where n.nspname = trim(part))
     ),
     ','
   );
@@ -538,7 +601,7 @@ select
 from
   "StrainVerse".strains s;
 
-grant select on "StrainVerse".strains_with_stats to anon, authenticated;
+grant select on "StrainVerse".strains_with_stats to anon, authenticated, service_role;
 
 
 -- STORAGE POLICIES --
@@ -626,6 +689,7 @@ END $$;
 grant usage on schema "StrainVerse" to anon, authenticated, service_role;
 grant select, insert, update, delete on all tables in schema "StrainVerse" to authenticated, service_role;
 grant select on all tables in schema "StrainVerse" to anon;
+grant select on "StrainVerse".strains_with_stats to anon, authenticated, service_role;
 grant all on all sequences in schema "StrainVerse" to authenticated, service_role;
 grant all on all routines in schema "StrainVerse" to authenticated, service_role;
 alter default privileges in schema "StrainVerse" grant select, insert, update, delete on tables to authenticated, service_role;
@@ -649,6 +713,7 @@ WHERE p.id IS NULL;
 
 -- Register StrainVerse with the shared Verse Supabase Data API
 select public.register_app_schema('StrainVerse');
+select public.repair_postgrest_schemas('StrainVerse');
 notify pgrst, 'reload schema';
 
 -- Verify setup
