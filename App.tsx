@@ -13,6 +13,7 @@ import HighlineFeed from './components/HighlineFeed';
 import SocialSeshDirectory from './components/SocialSeshDirectory';
 import SocialSeshView from './components/SocialSeshView';
 import CreateStoryModal from './components/CreateStoryModal';
+import InstallPrompt from './components/InstallPrompt';
 
 
 // --- VIEW CONFIGURATION ---
@@ -466,7 +467,12 @@ const App: React.FC = () => {
     }
 
     if (!user) {
-        return <LandingPage onSuccess={checkSession} />;
+        return (
+            <>
+                <LandingPage onSuccess={checkSession} />
+                <InstallPrompt />
+            </>
+        );
     }
 
     const showBackButton = !!selectedStrain || !!activeGroup;
@@ -498,6 +504,7 @@ const App: React.FC = () => {
             </div>
 
             <BottomNavBar currentView={currentView} setView={handleSetView} userAge={userAge} />
+            <InstallPrompt />
         </div>
     );
 };
