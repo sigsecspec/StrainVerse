@@ -15,8 +15,10 @@ export default defineConfig(({ mode }) => {
         react(),
         VitePWA({
           registerType: 'autoUpdate',
-          includeAssets: ['apple-touch-icon.png', 'pwa-192.png', 'pwa-512.png'],
+          injectRegister: null,
+          includeAssets: ['apple-touch-icon.png', 'pwa-192.png', 'pwa-512.png', 'favicon.ico'],
           manifest: {
+            id: '/',
             name: 'StrainVerse',
             short_name: 'StrainVerse',
             description: 'The Universe of Strains, Powered by You. A cannabis-culture social network and strain encyclopedia.',
@@ -32,11 +34,13 @@ export default defineConfig(({ mode }) => {
                 src: 'pwa-192.png',
                 sizes: '192x192',
                 type: 'image/png',
+                purpose: 'any',
               },
               {
                 src: 'pwa-512.png',
                 sizes: '512x512',
                 type: 'image/png',
+                purpose: 'any',
               },
               {
                 src: 'pwa-512.png',

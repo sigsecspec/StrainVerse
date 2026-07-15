@@ -1,81 +1,114 @@
 import React, { useEffect, useState } from 'react';
-import { Download, X, Share, Sprout } from 'lucide-react';
+import { Download, X, Share, Sprout, Monitor } from 'lucide-react';
+import {
+  BeforeInstallPromptEvent,
+  PWA_INSTALL_DISMISS_KEY,
+  PWA_INSTALL_AVAILABLE_EVENT,
+  getDeferredInstallPrompt,
+  onInstallPromptAvailable,
+  isStandaloneMode,
+  isIOS,
+  isAndroid,
+  isChromiumDesktop,
+} from '../utils/pwaInstall';
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
-const DISMISS_KEY = 'strainverse-pwa-install-dismissed';
-
-const isStandaloneMode = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-
-const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+type InstallMode = 'native' | 'ios' | 'android' | 'desktop';
 
 const InstallPrompt: React.FC = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(
+    () => getDeferredInstallPrompt()
+  );
   const [visible, setVisible] = useState(false);
-  const [showIOSHelp, setShowIOSHelp] = useState(false);
+  const [installMode, setInstallMode] = useState<InstallMode | null>(null);
   const [isInstalling, setIsInstalling] = useState(false);
 
   useEffect(() => {
-    if (isStandaloneMode() || localStorage.getItem(DISMISS_KEY) === '1') {
+    if (isStandaloneMode() || localStorage.getItem(PWA_INSTALL_DISMISS_KEY) === '1') {
       return;
     }
 
-    const onBeforeInstall = (event: Event) => {
-      event.preventDefault();
-      setDeferredPrompt(event as BeforeInstallPromptEvent);
-      setShowIOSHelp(false);
-      setVisible(true);
+    const syncPrompt = () => {
+      const prompt = getDeferredInstallPrompt();
+      if (prompt) {
+        setDeferredPrompt(prompt);
+        setInstallMode('native');
+        setVisible(true);
+      }
     };
 
-    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    const unsubscribe = onInstallPromptAvailable(syncPrompt);
+    const onAvailable = () => syncPrompt();
+    window.addEventListener(PWA_INSTALL_AVAILABLE_EVENT, onAvailable);
 
-    // iOS Safari has no beforeinstallprompt — offer Add to Home Screen help instead
-    if (isIOS()) {
-      const timer = window.setTimeout(() => setVisible(true), 2500);
-      return () => {
-        window.removeEventListener('beforeinstallprompt', onBeforeInstall);
-        window.clearTimeout(timer);
-      };
-    }
+    const fallbackTimer = window.setTimeout(() => {
+      if (isStandaloneMode() || localStorage.getItem(PWA_INSTALL_DISMISS_KEY) === '1') return;
+      if (getDeferredInstallPrompt()) {
+        syncPrompt();
+        return;
+      }
+      if (isIOS()) {
+        setInstallMode('ios');
+        setVisible(true);
+      } else if (isAndroid()) {
+        setInstallMode('android');
+        setVisible(true);
+      } else if (isChromiumDesktop()) {
+        setInstallMode('desktop');
+        setVisible(true);
+      }
+    }, 2000);
 
-    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+    return () => {
+      unsubscribe();
+      window.removeEventListener(PWA_INSTALL_AVAILABLE_EVENT, onAvailable);
+      window.clearTimeout(fallbackTimer);
+    };
   }, []);
 
   const dismiss = () => {
-    localStorage.setItem(DISMISS_KEY, '1');
+    localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1');
     setVisible(false);
-    setDeferredPrompt(null);
   };
 
   const handleInstall = async () => {
-    if (isIOS() || !deferredPrompt) {
-      setShowIOSHelp(true);
+    const prompt = deferredPrompt ?? getDeferredInstallPrompt();
+    if (!prompt) {
+      if (isIOS()) setInstallMode('ios');
+      else if (isAndroid()) setInstallMode('android');
+      else setInstallMode('desktop');
       return;
     }
 
     setIsInstalling(true);
     try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
+      await prompt.prompt();
+      const { outcome } = await prompt.userChoice;
       if (outcome === 'accepted') {
         dismiss();
       }
     } catch (error) {
       console.error('PWA install failed:', error);
+      if (isIOS()) setInstallMode('ios');
+      else if (isAndroid()) setInstallMode('android');
+      else setInstallMode('desktop');
     } finally {
       setIsInstalling(false);
-      setDeferredPrompt(null);
     }
   };
 
   if (!visible || isStandaloneMode()) {
     return null;
   }
+
+  const showNativeButton = installMode === 'native' && Boolean(deferredPrompt ?? getDeferredInstallPrompt());
+  const helpText =
+    installMode === 'ios'
+      ? 'Tap Share, then "Add to Home Screen" for the full app experience.'
+      : installMode === 'android'
+        ? 'Tap the menu (⋮) in your browser, then "Install app" or "Add to Home screen".'
+        : installMode === 'desktop'
+          ? 'Click the install icon in the address bar, or open the browser menu (⋮) and choose "Install StrainVerse".'
+          : 'Add to your home screen for faster access and an app-like experience.';
 
   return (
     <div className="fixed bottom-20 lg:bottom-6 left-4 right-4 z-50 mx-auto max-w-md fade-in-up" role="dialog" aria-label="Install StrainVerse app">
@@ -93,9 +126,7 @@ const InstallPrompt: React.FC = () => {
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-white text-sm">Install StrainVerse</h3>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              {showIOSHelp || (isIOS() && !deferredPrompt)
-                ? 'Tap Share, then "Add to Home Screen" for the full app experience.'
-                : 'Add to your home screen for faster access and an app-like experience.'}
+              {helpText}
             </p>
           </div>
           <button
@@ -108,7 +139,7 @@ const InstallPrompt: React.FC = () => {
           </button>
         </div>
 
-        {!showIOSHelp && !(isIOS() && !deferredPrompt) && (
+        {showNativeButton && (
           <div className="px-4 pb-4">
             <button
               onClick={handleInstall}
@@ -122,10 +153,27 @@ const InstallPrompt: React.FC = () => {
           </div>
         )}
 
-        {(showIOSHelp || (isIOS() && !deferredPrompt)) && (
-          <div className="px-4 pb-4 flex items-center gap-2 text-xs rounded-lg py-2 mx-4 mb-4" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
-            <Share size={14} className="flex-shrink-0 text-sky-400" />
-            <span>Share → Add to Home Screen</span>
+        {!showNativeButton && installMode && installMode !== 'native' && (
+          <div
+            className="px-4 pb-4 flex items-center gap-2 text-xs rounded-lg py-2 mx-4 mb-4"
+            style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}
+          >
+            {installMode === 'ios' ? (
+              <>
+                <Share size={14} className="flex-shrink-0 text-sky-400" />
+                <span>Share → Add to Home Screen</span>
+              </>
+            ) : installMode === 'android' ? (
+              <>
+                <Download size={14} className="flex-shrink-0 text-emerald-400" />
+                <span>Menu (⋮) → Install app</span>
+              </>
+            ) : (
+              <>
+                <Monitor size={14} className="flex-shrink-0 text-emerald-400" />
+                <span>Address bar install icon or Menu → Install</span>
+              </>
+            )}
           </div>
         )}
       </div>

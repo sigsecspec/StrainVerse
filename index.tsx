@@ -1,9 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './utils/pwaInstall';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 
-registerSW({ immediate: true });
+registerSW({
+  immediate: true,
+  onRegistered(registration) {
+    if (registration) {
+      registration.update();
+    }
+  },
+});
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
