@@ -818,7 +818,7 @@ BEGIN
       ),
       final_handle,
       'https://api.dicebear.com/7.x/avataaars/svg?seed=' || r.id,
-      'Just vibing.',
+      '',
       nullif(coalesce(r.raw_user_meta_data->>'date_of_birth', r.raw_user_meta_data->>'dob'), '')::date
     )
     on conflict (id) do nothing;

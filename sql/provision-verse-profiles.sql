@@ -52,7 +52,7 @@ begin
       ),
       final_handle,
       'https://api.dicebear.com/7.x/avataaars/svg?seed=' || r.id,
-      'Just vibing.',
+      '',
       nullif(coalesce(r.raw_user_meta_data->>'date_of_birth', r.raw_user_meta_data->>'dob'), '')::date
     )
     on conflict (id) do nothing;
@@ -60,6 +60,9 @@ begin
     raise notice 'Provisioned StrainVerse profile for % (%)', r.email, r.id;
   end loop;
 end $$;
+
+-- Clear legacy preset bios from earlier builds
+update "StrainVerse".profiles set bio = '' where bio = 'Just vibing.';
 
 select au.email, p.handle, p.name
 from auth.users au
