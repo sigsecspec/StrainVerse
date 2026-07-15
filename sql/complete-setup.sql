@@ -1,20 +1,24 @@
 -- StrainVerse Complete Database Setup
 -- Shared Verse Supabase project: https://vxahlxhrmypxxkrudqbd.supabase.co
+-- Ecosystem: Cookbook.io, StrainVerse, SpiritsVerse (one auth.users, per-app schemas)
 --
--- Run this entire file in the Supabase SQL Editor.
--- Safe to re-run: uses IF NOT EXISTS and idempotent policies throughout.
+-- RUN THIS ENTIRE FILE in the Supabase SQL Editor (not individual statements).
+-- Safe to re-run: IF NOT EXISTS, DROP POLICY IF EXISTS, idempotent inserts.
 --
--- Prerequisites:
---   - Legacy `strain` schema already removed
---   - `StrainVerse` schema may already exist (this script will create it if missing)
+-- What this script does:
+--   1. Creates/repairs PostgREST schema exposure (fixes PGRST002 / login failures)
+--   2. Creates all StrainVerse tables, views, triggers, RLS policies
+--   3. Creates storage bucket + policies
+--   4. Backfills profiles for existing auth.users (Cookbook / SpiritsVerse cross-app users)
+--   5. Registers StrainVerse with the Data API
 --
--- After running, verify Dashboard -> Project Settings -> Data API ->
--- Exposed schemas only lists schemas that exist (include StrainVerse, remove strain).
+-- After running:
+--   Dashboard -> Project Settings -> Data API -> Exposed schemas must include StrainVerse
+--   (remove dead entries: strain, strainverse)
 --
--- Quick fix for "could not query schema cache" / login broken:
---   Run sql/repair-postgrest.sql (entire file — do not run only the SELECT line)
---
--- Full app tables/policies: run this entire complete-setup.sql file
+-- Quick fix only (schema cache / can't log in): sql/repair-postgrest.sql
+
+create extension if not exists "pgcrypto";
 
 create schema if not exists "StrainVerse";
 
@@ -401,6 +405,16 @@ create table if not exists "StrainVerse".groups (
   members jsonb default '[]'::jsonb,
   created_at timestamptz default now()
 );
+alter table "StrainVerse".groups enable row level security;
+drop policy if exists "Authenticated users can view groups" on "StrainVerse".groups;
+create policy "Authenticated users can view groups" on "StrainVerse".groups
+  for select to authenticated using (true);
+drop policy if exists "Users can create groups" on "StrainVerse".groups;
+create policy "Users can create groups" on "StrainVerse".groups
+  for insert to authenticated with check (members::jsonb ? auth.uid()::text);
+drop policy if exists "Group members can update groups" on "StrainVerse".groups;
+create policy "Group members can update groups" on "StrainVerse".groups
+  for update to authenticated using (members::jsonb ? auth.uid()::text);
 
 -- Messages Table (for Groups)
 create table if not exists "StrainVerse".messages (
@@ -410,6 +424,26 @@ create table if not exists "StrainVerse".messages (
   text text not null,
   created_at timestamptz default now()
 );
+alter table "StrainVerse".messages enable row level security;
+drop policy if exists "Group members can view messages" on "StrainVerse".messages;
+create policy "Group members can view messages" on "StrainVerse".messages
+  for select to authenticated using (
+    exists (
+      select 1 from "StrainVerse".groups g
+      where g.id = group_id
+        and g.members::jsonb ? auth.uid()::text
+    )
+  );
+drop policy if exists "Group members can send messages" on "StrainVerse".messages;
+create policy "Group members can send messages" on "StrainVerse".messages
+  for insert to authenticated with check (
+    auth.uid() = user_id
+    and exists (
+      select 1 from "StrainVerse".groups g
+      where g.id = group_id
+        and g.members::jsonb ? auth.uid()::text
+    )
+  );
 
 -- Safety Status Table (For "Is It Hot?" feature)
 create table if not exists "StrainVerse".safety_reports (
@@ -609,6 +643,13 @@ from
 grant select on "StrainVerse".strains_with_stats to anon, authenticated, service_role;
 
 
+-- STORAGE --
+
+-- Create public StrainVerse bucket (posts/, stories/, strain photos)
+insert into storage.buckets (id, name, public)
+values ('StrainVerse', 'StrainVerse', true)
+on conflict (id) do update set public = excluded.public;
+
 -- STORAGE POLICIES --
 
 -- Policies for 'StrainVerse' bucket used for all uploads (posts, stories, strain photos)
@@ -622,6 +663,11 @@ drop policy if exists "Anyone can view files in StrainVerse" on storage.objects;
 create policy "Anyone can view files in StrainVerse"
   on storage.objects for select
   using ( bucket_id = 'StrainVerse' );
+
+drop policy if exists "Users can delete their own uploads in StrainVerse" on storage.objects;
+create policy "Users can delete their own uploads in StrainVerse"
+  on storage.objects for delete to authenticated
+  using ( bucket_id = 'StrainVerse' and owner = auth.uid() );
 
 -- Cleanup: We no longer use the 'posts' bucket for new uploads. 
 -- Existing policies for 'posts' can be removed if the bucket is deprecated.
@@ -685,6 +731,9 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'StrainVerse' AND tablename = 'blocks') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE "StrainVerse".blocks;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'StrainVerse' AND tablename = 'groups') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE "StrainVerse".groups;
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'StrainVerse' AND tablename = 'matchit_interactions') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE "StrainVerse".matchit_interactions;
   END IF;
@@ -699,25 +748,85 @@ grant all on all routines in schema "StrainVerse" to authenticated, service_role
 alter default privileges in schema "StrainVerse" grant select, insert, update, delete on tables to authenticated, service_role;
 alter default privileges in schema "StrainVerse" grant select on tables to anon;
 
--- SYNC EXISTING AUTH USERS --
--- This block pulls any existing users from auth.users and creates a profile for them if one doesn't exist.
-INSERT INTO "StrainVerse".profiles (id, name, handle, avatar, bio)
-SELECT 
-  au.id,
-  COALESCE(au.raw_user_meta_data->>'name', split_part(au.email, '@', 1)) as name,
-  COALESCE(
-    au.raw_user_meta_data->>'handle', 
-    split_part(au.email, '@', 1) || '_' || substr(md5(random()::text), 1, 4)
-  ) as handle,
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=' || au.id as avatar,
-  'Ready to connect.' as bio
-FROM auth.users au
-LEFT JOIN "StrainVerse".profiles p ON au.id = p.id
-WHERE p.id IS NULL;
+alter default privileges in schema "StrainVerse" grant select on tables to anon;
+
+-- INDEXES (idempotent) --
+create index if not exists profiles_handle_idx on "StrainVerse".profiles (handle);
+create index if not exists posts_user_id_created_at_idx on "StrainVerse".posts (user_id, created_at desc);
+create index if not exists posts_visibility_idx on "StrainVerse".posts (visibility);
+create index if not exists posts_matchit_idx on "StrainVerse".posts (is_matchit, match_expires_at);
+create index if not exists post_reactions_post_id_idx on "StrainVerse".post_reactions (post_id);
+create index if not exists post_comments_post_id_idx on "StrainVerse".post_comments (post_id);
+create index if not exists messages_group_id_created_at_idx on "StrainVerse".messages (group_id, created_at);
+create index if not exists strain_photos_strain_id_idx on "StrainVerse".strain_photos (strain_id);
+create index if not exists strain_reviews_strain_id_idx on "StrainVerse".strain_reviews (strain_id);
+create index if not exists matchit_interactions_post_id_idx on "StrainVerse".matchit_interactions (post_id);
+create index if not exists matchit_interactions_receiver_idx on "StrainVerse".matchit_interactions (receiver_id, status);
+
+-- SYNC EXISTING AUTH USERS (shared Verse auth — Cookbook, SpiritsVerse, StrainVerse) --
+-- Provisions StrainVerse.profiles for any auth.users row missing a profile.
+DO $$
+DECLARE
+  r record;
+  base_handle text;
+  final_handle text;
+  suffix text;
+BEGIN
+  FOR r IN
+    SELECT au.id, au.email, au.raw_user_meta_data
+    FROM auth.users au
+    LEFT JOIN "StrainVerse".profiles p ON au.id = p.id
+    WHERE p.id IS NULL
+  LOOP
+    base_handle := lower(
+      regexp_replace(
+        coalesce(
+          r.raw_user_meta_data->>'handle',
+          r.raw_user_meta_data->>'username',
+          split_part(r.email, '@', 1),
+          'user'
+        ),
+        '[^a-z0-9_]', '', 'g'
+      )
+    );
+    if base_handle = '' then
+      base_handle := 'user';
+    end if;
+    base_handle := left(base_handle, 24);
+    suffix := left(replace(r.id::text, '-', ''), 8);
+    final_handle := base_handle;
+
+    if exists (select 1 from "StrainVerse".profiles where handle = final_handle and id <> r.id) then
+      final_handle := left(base_handle || '_' || suffix, 24);
+    end if;
+    if exists (select 1 from "StrainVerse".profiles where handle = final_handle and id <> r.id) then
+      final_handle := 'user_' || suffix;
+    end if;
+
+    insert into "StrainVerse".profiles (id, name, handle, avatar, bio, date_of_birth)
+    values (
+      r.id,
+      left(
+        coalesce(
+          r.raw_user_meta_data->>'name',
+          r.raw_user_meta_data->>'full_name',
+          split_part(r.email, '@', 1),
+          'User'
+        ),
+        80
+      ),
+      final_handle,
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=' || r.id,
+      'Just vibing.',
+      nullif(coalesce(r.raw_user_meta_data->>'date_of_birth', r.raw_user_meta_data->>'dob'), '')::date
+    )
+    on conflict (id) do nothing;
+  END LOOP;
+END $$;
 
 -- Register StrainVerse with the shared Verse Supabase Data API
-select public.register_app_schema('StrainVerse');
-select public.repair_postgrest_schemas('StrainVerse');
+select public.register_app_schema('StrainVerse') as registered_schemas;
+select public.repair_postgrest_schemas('StrainVerse') as postgrest_schemas;
 notify pgrst, 'reload schema';
 
 -- Verify setup
@@ -725,3 +834,5 @@ select schemaname, tablename
 from pg_tables
 where schemaname = 'StrainVerse'
 order by tablename;
+
+select count(*) as profile_count from "StrainVerse".profiles;
