@@ -1,5 +1,93 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type User as AuthUser } from '@supabase/supabase-js';
 import { User, Post, Group, ChatMessage, PostVisibility, ReactionType, SafetyReport, GrowPlant, Story, GameScore, Strain, StrainPhoto, StrainReview, StrainChatMessage, PostComment, ReportCategory, MatchItInteraction, Widget } from '../types';
+
+const sanitizeHandle = (raw: string): string => {
+  const cleaned = raw.toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+  return cleaned.slice(0, 24) || 'user';
+};
+
+const deriveProfileFromAuthUser = (authUser: AuthUser): { name: string; handle: string; dob?: string } => {
+  const meta = authUser.user_metadata || {};
+  const name =
+    meta.name ||
+    meta.full_name ||
+    meta.display_name ||
+    authUser.email?.split('@')[0] ||
+    'User';
+  const rawHandle = meta.handle || meta.username || name;
+  const dob = meta.date_of_birth || meta.dob || undefined;
+  return { name: String(name).slice(0, 80), handle: sanitizeHandle(String(rawHandle)), dob };
+};
+
+const mapProfileRow = (data: Record<string, unknown>): User => {
+  const mockBadges = [
+    { id: '1', name: 'First Toke', description: 'You created your account!', icon: '💨' },
+    { id: '2', name: 'Strain Explorer', description: 'You viewed your first strain.', icon: '🗺️' },
+    { id: '3', name: 'Puff Puff Post', description: 'You made your first post.', icon: '✍️' },
+  ];
+  return {
+    ...data,
+    distanceRadius: (data.distance_radius as number) || 25,
+    city: data.city,
+    state: data.state,
+    badges: data.badges && Array.isArray(data.badges) && data.badges.length > 0 ? data.badges : mockBadges,
+    dateOfBirth: data.date_of_birth,
+    status: data.status,
+    role: data.role,
+  } as User;
+};
+
+const generateUniqueHandle = async (baseHandle: string, userId: string): Promise<string> => {
+  let candidate = sanitizeHandle(baseHandle);
+  const suffix = userId.replace(/-/g, '').slice(0, 8);
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('handle', candidate)
+      .maybeSingle();
+
+    if (!existing || existing.id === userId) return candidate;
+
+    candidate =
+      attempt === 0
+        ? sanitizeHandle(`${baseHandle}_${suffix}`)
+        : sanitizeHandle(`user_${suffix}${attempt > 1 ? String(attempt) : ''}`);
+  }
+
+  return `user_${suffix}`;
+};
+
+/** Ensures a StrainVerse profile exists for any shared Verse auth user (e.g. Cookbook signups). */
+const ensureStrainVerseProfile = async (authUser: AuthUser): Promise<{ ok: boolean; error?: string }> => {
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', authUser.id)
+    .maybeSingle();
+
+  if (existing) return { ok: true };
+
+  const { name, handle: baseHandle, dob } = deriveProfileFromAuthUser(authUser);
+  const handle = await generateUniqueHandle(baseHandle, authUser.id);
+
+  const payload: Record<string, unknown> = {
+    id: authUser.id,
+    name,
+    handle,
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authUser.id}`,
+    bio: 'Just vibing.',
+  };
+  if (dob) payload.date_of_birth = dob;
+
+  const { error } = await supabase.from('profiles').insert([payload]);
+  if (error) {
+    console.error('Error ensuring StrainVerse profile:', error);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
+};
 
 const SUPABASE_URL =
   import.meta.env.NEXT_PUBLIC_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
@@ -26,7 +114,17 @@ export const supabase = createClient(
 
 export const auth = {
     signIn: async (email: string, password: string) => {
-        return await supabase.auth.signInWithPassword({ email, password });
+        const result = await supabase.auth.signInWithPassword({ email, password });
+        if (!result.error && result.data.user) {
+            const provision = await ensureStrainVerseProfile(result.data.user);
+            if (!provision.ok) {
+                return {
+                    data: result.data,
+                    error: { message: provision.error || 'Could not set up your StrainVerse profile. Please try again.' } as typeof result.error,
+                };
+            }
+        }
+        return result;
     },
     signUp: async (email: string, password: string, name: string, handle: string, dob: string) => {
         const { data, error } = await supabase.auth.signUp({ 
@@ -42,10 +140,39 @@ export const auth = {
             }
         });
         
-        if (error) return { data, error };
+        if (error) {
+            const alreadyExists =
+                error.message?.toLowerCase().includes('already registered') ||
+                error.message?.toLowerCase().includes('already been registered') ||
+                (error as { code?: string }).code === 'user_already_exists';
+
+            if (alreadyExists) {
+                const signInResult = await supabase.auth.signInWithPassword({ email, password });
+                if (!signInResult.error && signInResult.data.user) {
+                    const provision = await ensureStrainVerseProfile(signInResult.data.user);
+                    if (!provision.ok) {
+                        return {
+                            data: signInResult.data,
+                            error: { message: provision.error || 'Signed in but could not create your StrainVerse profile.' } as typeof error,
+                        };
+                    }
+                    return signInResult;
+                }
+                return {
+                    data: signInResult.data,
+                    error: {
+                        message: 'This email is already registered on Cookbook or another Verse app. Sign in with your existing password.',
+                    } as typeof error,
+                };
+            }
+            return { data, error };
+        }
 
         if (data.user) {
-            await api.createProfile(data.user.id, name, handle, dob);
+            const provision = await api.createProfile(data.user.id, name, handle, dob);
+            if (!provision.ok) {
+                await ensureStrainVerseProfile(data.user);
+            }
         }
 
         return { data, error };
@@ -71,11 +198,12 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
 
 export const api = {
   
-  createProfile: async (userId: string, name: string, handle: string, dob?: string) => {
-    const payload: any = {
+  createProfile: async (userId: string, name: string, handle: string, dob?: string): Promise<{ ok: boolean; error?: string }> => {
+    const uniqueHandle = await generateUniqueHandle(handle, userId);
+    const payload: Record<string, unknown> = {
         id: userId,
         name,
-        handle,
+        handle: uniqueHandle,
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
         bio: 'Just vibing.'
     };
@@ -84,53 +212,35 @@ export const api = {
     }
     
     const { error } = await supabase.from('profiles').insert([payload]);
-    if (error) console.error("Error creating profile:", error);
+    if (error) {
+      console.error("Error creating profile:", error);
+      return { ok: false, error: error.message };
+    }
+    return { ok: true };
   },
 
   getCurrentUser: async (): Promise<User | null> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
 
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+    let { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
     
     if (error || !data) {
-        console.warn("Profile missing for authenticated user. Attempting recovery...");
-        const name = session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User';
-        const handle = session.user.user_metadata?.handle || `user_${Math.floor(Math.random() * 10000)}`;
-        const dob = session.user.user_metadata?.date_of_birth;
-        await api.createProfile(session.user.id, name, handle, dob);
-        const { data: retryData, error: retryError } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        if (retryError || !retryData) {
-            console.error("Failed to recover profile:", retryError);
+        console.warn("Profile missing for authenticated user. Provisioning StrainVerse profile...");
+        const provision = await ensureStrainVerseProfile(session.user);
+        if (!provision.ok) {
+            console.error("Failed to provision profile:", provision.error);
             return null;
         }
-        return { 
-            ...retryData, 
-            distanceRadius: retryData.distance_radius || 25, 
-            city: retryData.city,
-            state: retryData.state,
-            dateOfBirth: retryData.date_of_birth,
-            status: retryData.status,
-            role: retryData.role,
-        } as User;
+        const retry = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        if (retry.error || !retry.data) {
+            console.error("Failed to load profile after provisioning:", retry.error);
+            return null;
+        }
+        data = retry.data;
     }
-    
-    const mockBadges = [
-        { id: '1', name: 'First Toke', description: 'You created your account!', icon: '💨' },
-        { id: '2', name: 'Strain Explorer', description: 'You viewed your first strain.', icon: '🗺️' },
-        { id: '3', name: 'Puff Puff Post', description: 'You made your first post.', icon: '✍️' },
-    ];
 
-    return { 
-        ...data, 
-        distanceRadius: data.distance_radius || 25, 
-        city: data.city,
-        state: data.state,
-        badges: data.badges && data.badges.length > 0 ? data.badges : mockBadges,
-        dateOfBirth: data.date_of_birth,
-        status: data.status,
-        role: data.role,
-    } as User;
+    return mapProfileRow(data);
   },
 
   updateProfile: async (userId: string, updates: Partial<User>) => {

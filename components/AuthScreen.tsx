@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { auth } from '../services/supabaseClient';
-import { Loader2, Sparkles, Sprout } from 'lucide-react';
+import { auth, api } from '../services/supabaseClient';
+import { Loader2, Sprout } from 'lucide-react';
 
 interface AuthScreenProps {
   onSuccess: () => void;
@@ -25,16 +25,32 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
       if (isLogin) {
         const { error } = await auth.signIn(email, password);
         if (error) throw error;
+        const user = await api.getCurrentUser();
+        if (!user) {
+          throw new Error('Signed in but could not load your profile. Please try again.');
+        }
       } else {
         if (!name || !handle || !dob) {
           throw new Error("Please fill out all fields.");
         }
         const { error } = await auth.signUp(email, password, name, handle, dob);
         if (error) throw error;
+        const user = await api.getCurrentUser();
+        if (!user) {
+          throw new Error('Account created but could not load your profile. Try signing in.');
+        }
       }
       onSuccess();
     } catch (err: any) {
-      setError(err.message || "An error occurred");
+      const msg = err.message || "An error occurred";
+      if (msg.toLowerCase().includes('invalid login credentials')) {
+        setError('Invalid email or password. If you signed up on Cookbook, use the same credentials here.');
+      } else if (msg.toLowerCase().includes('already registered')) {
+        setError('This email is already registered. Sign in with your Cookbook or Verse password.');
+        setIsLogin(true);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -50,6 +66,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           Welcome to StrainVerse
         </h1>
         <p className="text-[var(--text-muted)] text-sm font-medium">{isLogin ? 'Sign in to continue' : 'Create your account'}</p>
+        <p className="text-[var(--text-muted)]/80 text-xs mt-2">
+          One Verse account works across Cookbook, StrainVerse, and more.
+        </p>
       </div>
 
       <div className="p-8">
