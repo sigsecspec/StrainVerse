@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AppView, User, Post, Group, PostVisibility, ReactionType, GrowPlant, Story, StrainSuggestion, GameScore, Strain, StrainPhoto, StrainReview, StrainChatMessage, ReportCategory } from './types';
 import { Sprout, Globe, MapPin, Users, User as UserIcon, Send, Flame, Image as ImageIcon, XCircle, Music, Leaf, Rocket, CloudFog, HelpCircle, Heart, Radio, Camera, Plus, Search, LogOut, Settings, Loader2, Wand2, Quote, ArrowLeft, Star, MessageSquare, Lightbulb, Copy, Filter } from 'lucide-react';
 import ProfileCanvas from './components/ProfileCanvas';
-import { api, auth, supabase, isSupabaseConfigured } from './services/supabaseClient';
+import { api, auth, supabase, isSupabaseConfigured, ensureStrainVerseProfile } from './services/supabaseClient';
 import LandingPage from './components/LandingPage';
 import SetupRequired from './components/SetupRequired';
 import StrainVerseDirectory from './components/StrainVerseDirectory';
@@ -246,7 +246,10 @@ const App: React.FC = () => {
 
     useEffect(() => {
         checkSession();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session?.user) {
+                await ensureStrainVerseProfile(session.user);
+            }
             if (event === 'INITIAL_SESSION') return;
             checkSession();
         });

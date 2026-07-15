@@ -60,7 +60,7 @@ const generateUniqueHandle = async (baseHandle: string, userId: string): Promise
 };
 
 /** Ensures a StrainVerse profile exists for any shared Verse auth user (e.g. Cookbook signups). */
-const ensureStrainVerseProfile = async (authUser: AuthUser): Promise<{ ok: boolean; error?: string }> => {
+export const ensureStrainVerseProfile = async (authUser: AuthUser): Promise<{ ok: boolean; error?: string }> => {
   const { data: existing } = await strainVerse()
     .from('profiles')
     .select('id')
@@ -190,9 +190,14 @@ export const auth = {
         }
 
         if (data.user) {
-            const provision = await api.createProfile(data.user.id, name, handle, dob);
+            const provision = await ensureStrainVerseProfile(data.user);
             if (!provision.ok) {
-                await ensureStrainVerseProfile(data.user);
+                return {
+                    data,
+                    error: {
+                        message: provision.error || 'Account created but could not create your StrainVerse profile.',
+                    } as typeof error,
+                };
             }
         }
 
