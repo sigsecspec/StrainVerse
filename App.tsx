@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AppView, User, Post, Group, PostVisibility, ReactionType, GrowPlant, Story, StrainSuggestion, GameScore, Strain, StrainPhoto, StrainReview, StrainChatMessage, ReportCategory } from './types';
 import { Sprout, Globe, MapPin, Users, User as UserIcon, Send, Flame, Image as ImageIcon, XCircle, Music, Leaf, Rocket, CloudFog, HelpCircle, Heart, Radio, Camera, Plus, Search, LogOut, Settings, Loader2, Wand2, Quote, ArrowLeft, Star, MessageSquare, Lightbulb, Copy, Filter } from 'lucide-react';
 import ProfileCanvas from './components/ProfileCanvas';
-import { api, auth, supabase } from './services/supabaseClient';
+import { api, auth, supabase, isSupabaseConfigured } from './services/supabaseClient';
 import LandingPage from './components/LandingPage';
+import SetupRequired from './components/SetupRequired';
 import StrainVerseDirectory from './components/StrainVerseDirectory';
 import StrainProfilePage from './components/StrainProfilePage';
 import Sidebar from './components/Sidebar';
@@ -162,18 +163,29 @@ const App: React.FC = () => {
     const [selectedStrain, setSelectedStrain] = useState<Strain | null>(null);
 
     const checkSession = async () => {
-        const { data: { session } } = await auth.getSession();
-        if (session) {
-            const currentUser = await api.getCurrentUser();
-            setUser(currentUser);
-            if (currentUser) {
-                setUserAge(calculateAge(currentUser.dateOfBirth));
+        if (!isSupabaseConfigured) {
+            setSessionChecked(true);
+            return;
+        }
+        try {
+            const { data: { session } } = await auth.getSession();
+            if (session) {
+                const currentUser = await api.getCurrentUser();
+                setUser(currentUser);
+                if (currentUser) {
+                    setUserAge(calculateAge(currentUser.dateOfBirth));
+                }
+            } else {
+                setUser(null);
+                setUserAge(null);
             }
-        } else {
+        } catch (error) {
+            console.error('Failed to check session:', error);
             setUser(null);
             setUserAge(null);
+        } finally {
+            setSessionChecked(true);
         }
-        setSessionChecked(true);
     };
 
     const refreshUser = async () => {
@@ -442,7 +454,15 @@ const App: React.FC = () => {
     }
 
     if (!sessionChecked) {
-        return <div className="h-screen w-full flex items-center justify-center bg-black"><p className="text-lg text-[var(--accent)] animate-pulse">Loading Your Universe...</p></div>;
+        return (
+            <div className="h-screen w-full flex flex-col items-center justify-center gap-3" style={{ background: 'var(--bg-main)', color: 'var(--text-main)' }}>
+                <p className="text-lg animate-pulse" style={{ color: 'var(--accent)' }}>Loading Your Universe...</p>
+            </div>
+        );
+    }
+
+    if (!isSupabaseConfigured) {
+        return <SetupRequired />;
     }
 
     if (!user) {

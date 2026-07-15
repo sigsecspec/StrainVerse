@@ -7,7 +7,7 @@ interface LandingPageProps {
 }
 
 const FeatureCard: React.FC<{ icon: React.ElementType; title: string; description: string; delay: string; }> = ({ icon: Icon, title, description, delay }) => (
-    <div className="bg-black/40 p-4 rounded-xl border border-white/10 backdrop-blur-sm opacity-0 animate-[fadeInUp_0.5s_ease-out_forwards]" style={{ animationDelay: delay, animationFillMode: 'forwards' }}>
+    <div className="bg-black/40 p-4 rounded-xl border border-white/10 backdrop-blur-sm fade-in-up" style={{ animationDelay: delay }}>
         <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
                 <Icon size={16} className="text-[var(--accent)]" />
@@ -20,7 +20,7 @@ const FeatureCard: React.FC<{ icon: React.ElementType; title: string; descriptio
 
 
 const MockStrainCard: React.FC<{ delay: string }> = ({ delay }) => (
-    <div className="bg-black/40 p-3 rounded-xl border border-white/10 backdrop-blur-sm opacity-0 animate-[fadeInUp_0.5s_ease-out_forwards] sm:col-span-2" style={{ animationDelay: delay, animationFillMode: 'forwards' }}>
+    <div className="bg-black/40 p-3 rounded-xl border border-white/10 backdrop-blur-sm fade-in-up sm:col-span-2" style={{ animationDelay: delay }}>
         <div className="flex gap-3">
             <div className="w-20 h-20 bg-white/5 rounded-lg flex-shrink-0 flex items-center justify-center">
                  <Leaf size={32} className="text-white/20" />
@@ -85,7 +85,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSuccess }) => {
             </div>
 
             <div className="w-full lg:w-[480px] xl:w-[520px] flex-shrink-0 flex items-center justify-center p-8 lg:p-12 bg-black/30 lg:backdrop-blur-xl lg:border-l lg:border-white/5">
-                <div className="w-full max-w-md opacity-0 animate-[fadeInUp_0.5s_ease-out_forwards]" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>
+                <div className="w-full max-w-md fade-in-up" style={{ animationDelay: '0.3s' }}>
                     <AuthScreen onSuccess={onSuccess} />
                 </div>
             </div>
