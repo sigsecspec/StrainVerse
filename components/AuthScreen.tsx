@@ -48,7 +48,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
       } else if (msg.toLowerCase().includes('already registered')) {
         setError('This email is already registered on Cookbook or another Verse app. Sign in with your existing password.');
         setIsLogin(true);
-      } else if (msg.toLowerCase().includes('schema cache') || msg.toLowerCase().includes('repair_postgrest_schemas')) {
+      } else if (
+        msg.toLowerCase().includes('schema cache') ||
+        msg.toLowerCase().includes('repair_postgrest_schemas') ||
+        msg.toLowerCase().includes('invalid schema') ||
+        msg.toLowerCase().includes('complete-setup.sql')
+      ) {
         setError(msg);
       } else {
         setError(msg);

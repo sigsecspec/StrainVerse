@@ -17,6 +17,7 @@
 --   (remove dead entries: strain, strainverse)
 --
 -- Quick fix only (schema cache / can't log in): sql/repair-postgrest.sql
+-- After wipe with sql/wipe-verse.sql: run sql/complete-setup.sql (or sql/bootstrap-strainverse.sql for sign-up only)
 
 create extension if not exists "pgcrypto";
 
