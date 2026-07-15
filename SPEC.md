@@ -442,7 +442,7 @@ All data access goes through `services/supabaseClient.ts` exports: `supabase`, `
 
 ## 8. Database Schema
 
-**Canonical SQL:** `sql/update.sql` (run in Supabase SQL Editor)
+**Canonical SQL:** `sql/complete-setup.sql` (run in Supabase SQL Editor)
 
 Schema namespace: `"StrainVerse"`
 
@@ -620,7 +620,7 @@ Group themes target: `.ys-group-root`, `.ys-group-header`, `.ys-group-chat`, `.y
 ### Prerequisites
 
 - Node.js
-- Supabase project with `StrainVerse` schema (run `sql/update.sql`)
+- Supabase project with `StrainVerse` schema (run `sql/complete-setup.sql`)
 - `StrainVerse` storage bucket with policies
 
 ### Local development
@@ -662,9 +662,7 @@ npm run preview
 ├── SPEC.md                    # This document
 ├── details.txt                # Legacy feature notes
 ├── sql/
-│   └── update.sql             # Canonical DB schema (shared Verse Supabase)
-├── sql.txt                    # Older standalone schema reference
-├── supabase_schema.sql        # Pointer to sql/update.sql
+│   └── complete-setup.sql     # Canonical DB schema (shared Verse Supabase)
 ├── services/
 │   ├── supabaseClient.ts      # Supabase client, auth, full API
 │   └── geminiService.ts       # Gemini AI helpers (mostly unused)

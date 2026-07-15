@@ -1,21 +1,17 @@
--- StrainVerse Database Schema (shared Verse Supabase project)
--- Run in Supabase SQL Editor on https://vxahlxhrmypxxkrudqbd.supabase.co
+-- StrainVerse Complete Database Setup
+-- Shared Verse Supabase project: https://vxahlxhrmypxxkrudqbd.supabase.co
 --
--- IMPORTANT: Schema name is case-sensitive: "StrainVerse" (not strain or strainverse).
--- If you still have the old `strain` schema, run sql/drop_strain_schema.sql FIRST.
--- After this script runs, verify Dashboard -> Project Settings -> Data API ->
--- Exposed schemas includes StrainVerse alongside public/Cookbook/etc.
+-- Run this entire file in the Supabase SQL Editor.
+-- Safe to re-run: uses IF NOT EXISTS and idempotent policies throughout.
+--
+-- Prerequisites:
+--   - Legacy `strain` schema already removed
+--   - `StrainVerse` schema may already exist (this script will create it if missing)
+--
+-- After running, verify Dashboard -> Project Settings -> Data API ->
+-- Exposed schemas includes StrainVerse (exact casing, not strainverse).
 
 create schema if not exists "StrainVerse";
-
--- Fix accidental lowercase schema created by dashboard/tools (strainverse vs StrainVerse)
-do $$
-begin
-  if exists (select 1 from pg_namespace where nspname = 'strainverse')
-     and not exists (select 1 from pg_namespace where nspname = 'StrainVerse') then
-    alter schema strainverse rename to "StrainVerse";
-  end if;
-end $$;
 
 -- Registers a custom schema with PostgREST (Supabase Data API).
 -- Preserves exact schema casing and appends to existing exposed schemas.
@@ -118,22 +114,6 @@ drop policy if exists "Users can insert their own profile." on "StrainVerse".pro
 create policy "Users can insert their own profile." on "StrainVerse".profiles for insert with check (auth.uid() = id);
 drop policy if exists "Users can update their own profile." on "StrainVerse".profiles;
 create policy "Users can update their own profile." on "StrainVerse".profiles for update using (auth.uid() = id);
-
--- Migrate from and drop legacy `strain` schema (wrong name from early setup)
-do $$
-begin
-  if exists (select 1 from pg_namespace where nspname = 'strain') then
-    if to_regclass('strain.profiles') is not null then
-      insert into "StrainVerse".profiles (id, name, handle, avatar, bio)
-      select p.id, p.name, p.handle, p.avatar, coalesce(p.bio, 'Ready to connect.')
-      from strain.profiles p
-      on conflict (id) do nothing;
-      raise notice 'Migrated profiles from strain -> StrainVerse';
-    end if;
-    execute 'drop schema strain cascade';
-    raise notice 'Dropped legacy schema: strain';
-  end if;
-end $$;
 
 -- 2. Posts Table
 create table if not exists "StrainVerse".posts (
@@ -666,6 +646,12 @@ FROM auth.users au
 LEFT JOIN "StrainVerse".profiles p ON au.id = p.id
 WHERE p.id IS NULL;
 
--- Register this app schema with the shared Verse Supabase project (case-sensitive: StrainVerse)
+-- Register StrainVerse with the shared Verse Supabase Data API
 select public.register_app_schema('StrainVerse');
 notify pgrst, 'reload schema';
+
+-- Verify setup
+select schemaname, tablename
+from pg_tables
+where schemaname = 'StrainVerse'
+order by tablename;
