@@ -15,6 +15,7 @@ create schema if not exists "StrainVerse";
 
 -- Registers a custom schema with PostgREST (Supabase Data API).
 -- Preserves exact schema casing and appends to existing exposed schemas.
+drop function if exists public.register_app_schema(text);
 create or replace function public.register_app_schema(app_schema text)
 returns text
 language plpgsql
