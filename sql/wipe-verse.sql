@@ -49,7 +49,17 @@ delete from auth.users;
 select set_config('storage.allow_delete_query', 'true', true);
 
 delete from storage.objects;
-delete from storage.prefixes;
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.tables
+    where table_schema = 'storage' and table_name = 'prefixes'
+  ) then
+    delete from storage.prefixes;
+  end if;
+end $$;
+
 delete from storage.buckets;
 
 commit;
