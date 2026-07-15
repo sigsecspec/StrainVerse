@@ -213,12 +213,6 @@ export interface Relationship {
   status: 'PENDING' | 'ACCEPTED';
 }
 
-export interface StrainSuggestion {
-    strainName: string;
-    description: string;
-    type: 'Indica' | 'Sativa' | 'Hybrid';
-}
-
 export interface GameScore {
   id: string;
   user_id: string;

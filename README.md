@@ -1,20 +1,28 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# StrainVerse
 
-# Run and deploy your AI Studio app
+*The Universe of Strains, Powered by You.*
 
-This contains everything you need to run your app locally.
+Cannabis-culture social network and community-sourced strain encyclopedia. Part of the shared **Verse** Supabase project (Cookbook.io, StrainVerse, SpiritsVerse).
 
-View your app in AI Studio: https://ai.studio/apps/0aaba688-0975-4357-9b70-0947faac93c1
+## Run locally
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+   ```bash
+   npm install
+   ```
+2. Copy env template and set Supabase credentials:
+   ```bash
+   cp .env.example .env.local
+   ```
+   Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local`.
+3. Run the dev server:
+   ```bash
+   npm run dev
+   ```
+   App runs at http://localhost:3000
+
+## Database setup
+
+Run `sql/complete-setup.sql` in the Supabase SQL Editor for a fresh `StrainVerse` schema. See `SPEC.md` for full documentation.

@@ -17,11 +17,10 @@ StrainVerse is a cannabis-culture social network that combines a community-sourc
 7. [API Layer](#7-api-layer)
 8. [Database Schema](#8-database-schema)
 9. [Storage](#9-storage)
-10. [AI / Gemini Integration](#10-ai--gemini-integration)
-11. [Design System](#11-design-system)
-12. [Implementation Status](#12-implementation-status)
-13. [Environment & Setup](#13-environment--setup)
-14. [Project Structure](#14-project-structure)
+10. [Design System](#10-design-system)
+11. [Implementation Status](#11-implementation-status)
+12. [Environment & Setup](#12-environment--setup)
+13. [Project Structure](#13-project-structure)
 
 ---
 
@@ -54,7 +53,6 @@ Cannabis enthusiasts who want strain knowledge, community conversation, and loca
 | **Frontend** | React 19, TypeScript, Vite 6 |
 | **Styling** | Tailwind CSS (CDN), CSS custom properties, Lucide React icons |
 | **Backend** | Supabase — PostgreSQL, Auth, Realtime, Storage |
-| **AI (optional)** | Google Gemini (`@google/genai`) |
 | **Fonts** | Inter (body), Poppins (headings), Fira Code (code editors) |
 
 ### Supabase configuration
@@ -62,7 +60,7 @@ Cannabis enthusiasts who want strain knowledge, community conversation, and loca
 - **Schema:** `StrainVerse` (not `public`)
 - **Client:** `services/supabaseClient.ts` — `createClient` with `db.schema: 'StrainVerse'`
 - **Shared project URL:** `https://vxahlxhrmypxxkrudqbd.supabase.co`
-- **Env vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `GEMINI_API_KEY`
+- **Env vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
 ### App entry flow
 
@@ -508,23 +506,7 @@ Tables published to `supabase_realtime` for live updates (profiles, posts, react
 
 ---
 
-## 10. AI / Gemini Integration
-
-**Service:** `services/geminiService.ts`  
-**Env:** `GEMINI_API_KEY` (injected as `process.env.API_KEY` via Vite)
-
-| Function | Model | Purpose | Wired to UI? |
-|----------|-------|---------|--------------|
-| `generateSocialPost(topic)` | gemini-2.5-flash | Short post text | ❌ |
-| `generateStrainSuggestion(mood, time, effect)` | gemini-2.5-flash | JSON strain recommendation | ❌ |
-| `generateStonerCamImage(prompt, image, mime)` | gemini-2.5-flash-image | Photo filter/edit | ❌ |
-| `generateHighdea()` | gemini-2.5-flash | Funny stoner thought | ❌ |
-| `generateVibeOfTheDay()` | gemini-2.5-flash | Cannabis culture quote | ❌ |
-| `moderatePostContent(content)` | gemini-2.5-flash | PII/meetup/sales moderation | ❌ (removed from createPost) |
-
----
-
-## 11. Design System
+## 10. Design System
 
 ### Color palette (CSS variables)
 
@@ -563,7 +545,7 @@ Profile layout uses: `.ys-profile-root`, `.ys-header`, `.ys-avatar`, `.ys-bio`, 
 
 ---
 
-## 12. Implementation Status
+## 11. Implementation Status
 
 ### ✅ Fully implemented & wired
 
@@ -582,7 +564,6 @@ Profile layout uses: `.ys-profile-root`, `.ys-header`, `.ys-avatar`, `.ys-bio`, 
 - Grow hub (`grow_plants`)
 - Safety area reports (`safety_reports`)
 - Game leaderboards (`game_scores`)
-- All Gemini AI features
 - `LocalLoud.tsx` component (local radius feed — not mounted in `App.tsx`)
 
 ### 🔲 Placeholder UI only
@@ -600,7 +581,7 @@ Profile layout uses: `.ys-profile-root`, `.ys-header`, `.ys-avatar`, `.ys-bio`, 
 
 ---
 
-## 13. Environment & Setup
+## 12. Environment & Setup
 
 ### Prerequisites
 
@@ -615,7 +596,6 @@ npm install
 cp .env.example .env.local
 # Set NEXT_PUBLIC_SUPABASE_URL
 # Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-# Optional: GEMINI_API_KEY
 npm run dev    # http://localhost:3000
 ```
 
@@ -632,11 +612,10 @@ npm run preview
 |----------|----------|-------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes | Supabase anon/publishable key |
-| `GEMINI_API_KEY` | No | Google Gemini for AI features |
 
 ---
 
-## 14. Project Structure
+## 13. Project Structure
 
 ```
 /workspace
@@ -649,8 +628,7 @@ npm run preview
 ├── sql/
 │   └── complete-setup.sql     # Canonical DB schema (shared Verse Supabase)
 ├── services/
-│   ├── supabaseClient.ts      # Supabase client, auth, full API
-│   └── geminiService.ts       # Gemini AI helpers (mostly unused)
+│   └── supabaseClient.ts      # Supabase client, auth, full API
 └── components/
     ├── AuthScreen.tsx         # Login / signup form
     ├── LandingPage.tsx        # Marketing + auth shell
