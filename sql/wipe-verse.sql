@@ -44,8 +44,12 @@ delete from auth.users;
 
 -- -----------------------------------------------------------------------------
 -- 3) Wipe all storage buckets and uploaded files
+--    Supabase blocks raw DELETE unless this session flag is set (prevents orphans).
 -- -----------------------------------------------------------------------------
+select set_config('storage.allow_delete_query', 'true', true);
+
 delete from storage.objects;
+delete from storage.prefixes;
 delete from storage.buckets;
 
 commit;
