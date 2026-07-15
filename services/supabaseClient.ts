@@ -20,17 +20,16 @@ const deriveProfileFromAuthUser = (authUser: AuthUser): { name: string; handle: 
 };
 
 const mapProfileRow = (data: Record<string, unknown>): User => {
-  const mockBadges = [
-    { id: '1', name: 'First Toke', description: 'You created your account!', icon: '💨' },
-    { id: '2', name: 'Strain Explorer', description: 'You viewed your first strain.', icon: '🗺️' },
-    { id: '3', name: 'Puff Puff Post', description: 'You made your first post.', icon: '✍️' },
-  ];
+  const badges = Array.isArray(data.badges) ? data.badges : [];
+  const widgets = Array.isArray(data.widgets) ? data.widgets : [];
   return {
     ...data,
     distanceRadius: (data.distance_radius as number) || 25,
     city: data.city,
     state: data.state,
-    badges: data.badges && Array.isArray(data.badges) && data.badges.length > 0 ? data.badges : mockBadges,
+    badges,
+    widgets,
+    bio: typeof data.bio === 'string' ? data.bio : '',
     dateOfBirth: data.date_of_birth,
     status: data.status,
     role: data.role,
@@ -77,7 +76,7 @@ export const ensureStrainVerseProfile = async (authUser: AuthUser): Promise<{ ok
     name,
     handle,
     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authUser.id}`,
-    bio: 'Just vibing.',
+    bio: '',
   };
   if (dob) payload.date_of_birth = dob;
 
@@ -253,7 +252,7 @@ export const api = {
         name,
         handle: uniqueHandle,
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
-        bio: 'Just vibing.'
+        bio: ''
     };
     if (dob) {
       payload.date_of_birth = dob;

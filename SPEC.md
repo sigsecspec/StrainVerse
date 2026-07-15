@@ -248,7 +248,7 @@ MatchIt is hidden from sidebar and bottom nav unless `userAge >= 21`.
 
 #### Badges
 
-- Gamification display (mock badges if none in DB: First Toke, Strain Explorer, Puff Puff Post)
+- Gamification display (empty until earned)
 
 #### Profile tabs
 
