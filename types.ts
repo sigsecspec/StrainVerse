@@ -77,7 +77,6 @@ export interface User {
   handle: string;
   avatar: string;
   bio: string;
-  widgets: Widget[];
   latitude?: number;
   longitude?: number;
   distanceRadius?: number; // km
@@ -86,22 +85,12 @@ export interface User {
   favStrains?: string[];
   smokingStyle?: 'Joint' | 'Blunt' | 'Glass' | 'Vape' | 'Edibles';
   badges?: Badge[];
-  // Fix: Add missing properties for profile customization
-  custom_css?: string;
-  custom_js?: string;
   dateOfBirth?: string; // YYYY-MM-DD
   status?: 'active' | 'shadow_banned' | 'banned';
   role?: UserRole;
 }
 
-export interface Widget {
-  id: string;
-  type: 'YOUTUBE' | 'IMAGE' | 'TEXT' | 'STATS';
-  content: string; 
-  title?: string;
-}
-
-export type PostVisibility = 
+export type PostVisibility =
   | 'HIGHLINE'        // Global Public
   | 'LOCAL_LOUD'      // Local Radius
   | 'FRIENDS' 

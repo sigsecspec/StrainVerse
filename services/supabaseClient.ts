@@ -1,5 +1,5 @@
 import { createClient, type User as AuthUser } from '@supabase/supabase-js';
-import { User, Post, Group, ChatMessage, PostVisibility, ReactionType, SafetyReport, GrowPlant, Story, GameScore, Strain, StrainPhoto, StrainReview, StrainChatMessage, PostComment, ReportCategory, MatchItInteraction, Widget } from '../types';
+import { User, Post, Group, ChatMessage, PostVisibility, ReactionType, SafetyReport, GrowPlant, Story, GameScore, Strain, StrainPhoto, StrainReview, StrainChatMessage, PostComment, ReportCategory, MatchItInteraction } from '../types';
 
 const sanitizeHandle = (raw: string): string => {
   const cleaned = raw.toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
@@ -21,14 +21,12 @@ const deriveProfileFromAuthUser = (authUser: AuthUser): { name: string; handle: 
 
 const mapProfileRow = (data: Record<string, unknown>): User => {
   const badges = Array.isArray(data.badges) ? data.badges : [];
-  const widgets = Array.isArray(data.widgets) ? data.widgets : [];
   return {
     ...data,
     distanceRadius: (data.distance_radius as number) || 25,
     city: data.city,
     state: data.state,
     badges,
-    widgets,
     bio: typeof data.bio === 'string' ? data.bio : '',
     dateOfBirth: data.date_of_birth,
     status: data.status,
@@ -324,28 +322,6 @@ export const api = {
     }
   },
 
-  updateProfileTheme: async (userId: string, css: string, js: string) => {
-    const { error } = await strainVerse()
-      .from('profiles')
-      .update({ custom_css: css, custom_js: js })
-      .eq('id', userId);
-    if (error) {
-      console.error("Error updating profile theme:", error);
-      throw error;
-    }
-  },
-
-  updateWidgets: async (userId: string, widgets: Widget[]) => {
-    const { error } = await strainVerse()
-      .from('profiles')
-      .update({ widgets })
-      .eq('id', userId);
-    if (error) {
-      console.error("Error updating widgets:", error);
-      throw error;
-    }
-  },
-  
   updateUserLocation: async (userId: string, lat: number, lng: number, radius: number) => {
       await strainVerse().from('profiles').update({ latitude: lat, longitude: lng, distance_radius: radius }).eq('id', userId);
   },
