@@ -191,7 +191,24 @@ export const auth = {
         }
 
         if (data.user) {
-            const provision = await ensureStrainVerseProfile(data.user);
+            let authUser = data.user;
+
+            // Email confirmation can leave a user without a session; profile insert needs auth.uid().
+            if (!data.session) {
+                const signInResult = await supabase.auth.signInWithPassword({ email, password });
+                if (signInResult.error) {
+                    return {
+                        data,
+                        error: {
+                            message:
+                                'Account created in Verse. Confirm your email if required, then sign in here with the same password.',
+                        } as typeof error,
+                    };
+                }
+                authUser = signInResult.data.user!;
+            }
+
+            const provision = await ensureStrainVerseProfile(authUser);
             if (!provision.ok) {
                 return {
                     data,
@@ -199,6 +216,10 @@ export const auth = {
                         message: provision.error || 'Account created but could not create your StrainVerse profile.',
                     } as typeof error,
                 };
+            }
+
+            if (!data.session) {
+                return { data: { user: authUser, session: (await supabase.auth.getSession()).data.session }, error: null };
             }
         }
 

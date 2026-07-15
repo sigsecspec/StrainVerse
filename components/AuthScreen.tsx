@@ -48,6 +48,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
       } else if (msg.toLowerCase().includes('already registered')) {
         setError('This email is already registered on Cookbook or another Verse app. Sign in with your existing password.');
         setIsLogin(true);
+      } else if (msg.toLowerCase().includes('could not create your strainverse profile') || msg.toLowerCase().includes('could not load your profile')) {
+        setError(`${msg} Run sql/complete-setup.sql in Supabase, then sign in again — your Verse password works here too.`);
       } else if (
         msg.toLowerCase().includes('schema cache') ||
         msg.toLowerCase().includes('repair_postgrest_schemas') ||
