@@ -1,11 +1,37 @@
 // Fix: Corrected malformed import statement
 import React, { useState } from 'react';
-import { User, Widget, Post, Strain, ReactionType } from '../types';
-import { MessageSquare, Heart, Share2, ThumbsDown, Flame, FileText, Users, Sprout, MapPin, Cigarette, Leaf as LeafIcon, Settings, ThumbsUp, LayoutGrid } from 'lucide-react';
+import { User, Post, Strain, ReactionType } from '../types';
+import { MessageSquare, Heart, Share2, ThumbsDown, Flame, FileText, Users, MapPin, Cigarette, Leaf as LeafIcon, Settings, ThumbsUp } from 'lucide-react';
 import ProfileSettingsModal from './ProfileSettingsModal';
-import ProfileCustomization from './ProfileCustomization';
-import WidgetsModal from './WidgetsModal';
 import { api } from '../services/supabaseClient';
+
+const DEFAULT_PROFILE_CSS = `.ys-profile-root {
+  background-color: #0a0a0a;
+  color: #f0f0f0;
+  font-family: 'Inter', sans-serif;
+  background-image: radial-gradient(circle at 50% 0%, rgba(34, 95, 65, 0.2) 0%, #0a0a0a 60%);
+}
+.ys-header {
+  border-bottom: 1px solid var(--border-strong);
+}
+.ys-name {
+  color: var(--text-main);
+  font-weight: 900;
+}
+.ys-avatar {
+  border: 3px solid var(--border-strong);
+}
+.ys-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+.ys-bio {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}`;
 
 interface ProfileCanvasProps {
   user: User;
@@ -16,44 +42,6 @@ interface ProfileCanvasProps {
   refreshUser: () => Promise<void>;
   onReaction: (postId: string, type: ReactionType) => void;
 }
-
-// Helper to render widgets based on type
-const WidgetRenderer: React.FC<{ widget: Widget }> = ({ widget }) => {
-  switch (widget.type) {
-    case 'YOUTUBE':
-      // Extract video ID logic could be more robust, simple fallback here
-      const videoId = widget.content.split('v=')[1] || widget.content;
-      return (
-        <div className="ys-widget mb-4 overflow-hidden rounded-lg shadow-lg">
-          {widget.title && <h4 className="ys-widget-title text-sm font-bold mb-1">{widget.title}</h4>}
-          <iframe
-            className="w-full aspect-video"
-            src={`https://www.youtube.com/embed/${videoId}`}
-            title="YouTube video player"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          ></iframe>
-        </div>
-      );
-    case 'IMAGE':
-      return (
-        <div className="ys-widget mb-4">
-           {widget.title && <h4 className="ys-widget-title text-sm font-bold mb-1">{widget.title}</h4>}
-          <img src={widget.content} alt="Widget" className="w-full rounded-lg object-cover" />
-        </div>
-      );
-    case 'TEXT':
-      return (
-        <div className="ys-widget mb-4 p-4 bg-white/5 rounded-lg border border-white/10 backdrop-blur-sm">
-           {widget.title && <h4 className="ys-widget-title text-sm font-bold mb-1">{widget.title}</h4>}
-          <p className="text-sm">{widget.content}</p>
-        </div>
-      );
-    default:
-      return null;
-  }
-};
 
 const StatCard: React.FC<{ icon: React.ElementType; label: string; value: string | number; color: string; }> = ({ icon: Icon, label, value, color }) => (
     <div className="flex-1 bg-white/5 p-4 rounded-xl backdrop-blur-sm border border-white/10 flex items-center gap-4">
@@ -71,18 +59,11 @@ const StatCard: React.FC<{ icon: React.ElementType; label: string; value: string
 const ProfileCanvas: React.FC<ProfileCanvasProps> = ({ user, posts, isOwner, friendCount, triedStrains, refreshUser, onReaction }) => {
   const [activeTab, setActiveTab] = useState('Posts');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isWidgetsModalOpen, setIsWidgetsModalOpen] = useState(false);
 
   const handleSaveSettings = async (updates: Partial<User>) => {
     await api.updateProfile(user.id, updates);
     await refreshUser();
     setIsSettingsOpen(false);
-  }
-
-  const handleSaveWidgets = async (widgets: Widget[]) => {
-    await api.updateWidgets(user.id, widgets);
-    await refreshUser();
-    setIsWidgetsModalOpen(false);
   }
   
   const reactionsToDisplay: ReactionType[] = ['THUMBS_UP', 'LIKE', 'FIRE', 'DISLIKE'];
@@ -121,11 +102,9 @@ const ProfileCanvas: React.FC<ProfileCanvasProps> = ({ user, posts, isOwner, fri
 
   return (
     <div className="relative min-h-screen w-full">
+      <style dangerouslySetInnerHTML={{ __html: DEFAULT_PROFILE_CSS }} />
       {isSettingsOpen && <ProfileSettingsModal user={user} onSave={handleSaveSettings} onClose={() => setIsSettingsOpen(false)} />}
-      {isWidgetsModalOpen && <WidgetsModal widgets={user.widgets || []} onSave={handleSaveWidgets} onClose={() => setIsWidgetsModalOpen(false)} />}
-      {isOwner && <ProfileCustomization user={user} isOwner={isOwner} refreshUser={refreshUser} />}
 
-      {/* The Canvas Root - CSS Targets This */}
       <div className="ys-profile-root p-4 md:p-8 max-w-7xl mx-auto">
         
         {/* Header Section */}
@@ -185,7 +164,7 @@ const ProfileCanvas: React.FC<ProfileCanvasProps> = ({ user, posts, isOwner, fri
         {/* Layout Grid */}
         <div className="ys-layout-grid grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* Sidebar (Widgets) */}
+          {/* Sidebar */}
           <aside className="ys-sidebar lg:col-span-4 space-y-6">
             <div className="bg-white/5 p-4 rounded-xl backdrop-blur-sm border border-white/10">
                 <h3 className="text-lg font-bold mb-4 border-b border-white/10 pb-2">About Me</h3>
@@ -208,20 +187,6 @@ const ProfileCanvas: React.FC<ProfileCanvasProps> = ({ user, posts, isOwner, fri
                     )}
                 </div>
             </div>
-            
-            {/* User Widgets */}
-            {(user.widgets || []).map(w => (
-              <WidgetRenderer key={w.id} widget={w} />
-            ))}
-
-            {isOwner && (
-              <button
-                onClick={() => setIsWidgetsModalOpen(true)}
-                className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-dashed border-white/20 text-sm font-bold py-3 rounded-xl transition-colors text-white/70 hover:text-white"
-              >
-                <LayoutGrid size={16} /> Manage Widgets
-              </button>
-            )}
           </aside>
 
           {/* Main Feed */}

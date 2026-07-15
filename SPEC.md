@@ -35,7 +35,7 @@ A **stoner-first social network** centered on:
 - **Social feeds** — global timeline (HerbHub), ephemeral stories, reactions, and comments
 - **Local matching** — MatchIt for finding nearby smoking buddies (21+ age-gated)
 - **Group sessions** — SocialSesh for public, friends-only, family, and match-created chats
-- **Personal profiles** — stats, badges, tried strains, custom CSS/JS themes, and embeddable widgets
+- **Personal profiles** — stats, badges, and tried strains
 
 ### Target audience
 
@@ -262,14 +262,6 @@ MatchIt is hidden from sidebar and bottom nav unless `userAge >= 21`.
 #### Sidebar (About Me)
 
 - Location, smoking style, favorite strains
-- **Widgets** — YouTube embed, image, text blocks
-- **Manage Widgets** → `WidgetsModal` (add/remove/persist)
-
-#### Customization (owner only)
-
-- **Theme editor** (`ProfileCustomization` + `CSSEditor`) — custom CSS and JS; floating wand button
-- CSS targets: `.ys-profile-root`, `.ys-header`, `.ys-avatar`, `.ys-bio`, `.ys-card`, etc.
-- JS executed via `new Function()` on profile load
 
 #### Profile settings fields
 
@@ -340,13 +332,12 @@ MatchIt is hidden from sidebar and bottom nav unless `userAge >= 21`.
 
 | Interface | Purpose |
 |-----------|---------|
-| `User` | Profile: identity, location, prefs, theme, badges, widgets |
+| `User` | Profile: identity, location, prefs, badges |
 | `Post` | Feed item with reactions, metadata, MatchIt fields |
 | `Strain` | Encyclopedia entry + aggregated stats + user log flags |
 | `Group` | Chat room with members and messages |
 | `Story` | Ephemeral image story |
 | `MatchItInteraction` | TAP/SPARK between users on a post |
-| `Widget` | Profile embed: YOUTUBE, IMAGE, TEXT, STATS |
 
 ---
 
@@ -370,8 +361,6 @@ All data access goes through `services/supabaseClient.ts` exports: `supabase`, `
 | `createProfile(userId, name, handle, dob?)` | Insert profile row |
 | `getCurrentUser()` | Session user + profile mapping (camelCase) |
 | `updateProfile(userId, updates)` | Name, bio, city, state, fav strains, smoking style, DOB |
-| `updateProfileTheme(userId, css, js)` | Custom CSS/JS |
-| `updateWidgets(userId, widgets)` | Profile widget array |
 | `updateUserLocation(userId, lat, lng, radius)` | GPS coordinates + radius |
 
 ### Social feed
@@ -450,7 +439,7 @@ Schema namespace: `"StrainVerse"`
 
 | Table | Purpose |
 |-------|---------|
-| `profiles` | User public data, location, theme, widgets, badges, role, status |
+| `profiles` | User public data, location, badges, role, status |
 | `posts` | Feed content, visibility, geo, strain meta, MatchIt fields |
 | `post_reactions` | One reaction per user per post |
 | `post_comments` | Thread comments; triggers update `posts.comments` count |
@@ -529,7 +518,6 @@ Tables published to `supabase_realtime` for live updates (profiles, posts, react
 | `generateSocialPost(topic)` | gemini-2.5-flash | Short post text | ❌ |
 | `generateStrainSuggestion(mood, time, effect)` | gemini-2.5-flash | JSON strain recommendation | ❌ |
 | `generateStonerCamImage(prompt, image, mime)` | gemini-2.5-flash-image | Photo filter/edit | ❌ |
-| `generateCSSTheme(prompt, isGroup)` | gemini-2.5-flash | CSS variable theme | ❌ (CSSEditor has manual editor only) |
 | `generateHighdea()` | gemini-2.5-flash | Funny stoner thought | ❌ |
 | `generateVibeOfTheDay()` | gemini-2.5-flash | Cannabis culture quote | ❌ |
 | `moderatePostContent(content)` | gemini-2.5-flash | PII/meetup/sales moderation | ❌ (removed from createPost) |
@@ -571,9 +559,7 @@ Tables published to `supabase_realtime` for live updates (profiles, posts, react
 
 ### Profile CSS class contract
 
-Custom themes target: `.ys-profile-root`, `.ys-header`, `.ys-avatar`, `.ys-bio`, `.ys-card`, `.ys-layout-grid`, `.ys-sidebar`, `.ys-feed`, `.ys-widget`, `.ys-widget-title`
-
-Group themes target: `.ys-group-root`, `.ys-group-header`, `.ys-group-chat`, `.ys-message-bubble`
+Profile layout uses: `.ys-profile-root`, `.ys-header`, `.ys-avatar`, `.ys-bio`, `.ys-card`, `.ys-layout-grid`, `.ys-sidebar`, `.ys-feed`
 
 ---
 
@@ -586,7 +572,7 @@ Group themes target: `.ys-group-root`, `.ys-group-header`, `.ys-group-chat`, `.y
 - HerbHub feed (posts, reactions, comments, stories)
 - MatchIt (feed, vibes, matches, report, block, age/location gates)
 - SocialSesh (directory, create group, chat, voice UI simulation)
-- My Stash profile (stats, posts, tried strains, settings, widgets, theme editor)
+- My Stash profile (stats, posts, tried strains, settings)
 - Image uploads (posts, stories, strain photos)
 - Geolocation update on login
 
@@ -611,7 +597,6 @@ Group themes target: `.ys-group-root`, `.ys-group-header`, `.ys-group-chat`, `.y
 - Strain chat does not use Realtime subscription
 - No friend request / accept UI despite `relationships` table
 - MatchIt post visibility uses `LOCAL_LOUD` but feed filters on `is_matchit` flag
-- `widgets` type includes `STATS` but WidgetsModal only supports YOUTUBE, IMAGE, TEXT
 
 ---
 
@@ -682,9 +667,6 @@ npm run preview
     ├── VibeTapModal.tsx
     ├── ProfileCanvas.tsx      # My Stash
     ├── ProfileSettingsModal.tsx
-    ├── ProfileCustomization.tsx  # Theme editor wrapper
-    ├── CSSEditor.tsx          # CSS/JS theme modal
-    ├── WidgetsModal.tsx         # Profile widget manager
     ├── common.tsx               # SkeletonPost, StrainStories
     ├── Logo.tsx
     └── LocalLoud.tsx            # Unused local feed component

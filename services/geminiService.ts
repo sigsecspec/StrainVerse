@@ -99,54 +99,6 @@ export const generateStonerCamImage = async (prompt: string, imageBase64: string
   }
 };
 
-// Fix: Add missing generateCSSTheme function to resolve import error in CSSEditor.tsx
-export const generateCSSTheme = async (prompt: string, isGroup: boolean): Promise<string> => {
-    const selectors = isGroup 
-        ? `.ys-group-root, .ys-group-header, .ys-group-chat, .ys-message-bubble` 
-        : `.ys-profile-root, .ys-header, .ys-avatar, .ys-bio, .ys-card`;
-    
-    const fullPrompt = `
-        You are an expert CSS theme designer for a social media app.
-        A user wants a theme based on the prompt: "${prompt}".
-        
-        The theme will be applied to these CSS selectors: ${selectors}.
-        
-        Generate a CSS theme using ONLY CSS variables within a ":root" selector. Do NOT include any other CSS rules.
-        The theme should be modern, clean, and visually appealing.
-        You MUST define variables for the following properties:
-        --bg-main, --bg-card, --bg-hover, --bg-input, --border, --border-strong, 
-        --text-main, --text-secondary, --text-muted, --accent, --accent-hover, --shadow-color.
-        
-        Make sure the colors have good contrast and are accessible.
-        Return ONLY the CSS code inside a \`\`\`css code block.
-        
-        Example output format:
-        \`\`\`css
-        :root {
-            --bg-main: #1a1a1a;
-            --bg-card: #2a2a2a;
-            /* ...and so on */
-        }
-        \`\`\`
-    `;
-
-    try {
-        const ai = getAI();
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: fullPrompt,
-        });
-
-        const cssText = response.text || '';
-        // Extract content from markdown code block
-        const match = cssText.match(/```css\s*([\s\S]*?)\s*```/);
-        return match ? match[1].trim() : `/* Sorry, couldn't generate a theme. */`;
-    } catch (e) {
-        console.error("Error generating CSS theme:", e);
-        return `/* AI Error: Please try again. */`;
-    }
-};
-
 export const generateHighdea = async (): Promise<string> => {
     try {
         const ai = getAI();
