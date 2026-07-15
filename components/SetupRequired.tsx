@@ -1,13 +1,12 @@
 import React from 'react';
-import { Sprout, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { LogoMark } from './Logo';
 
 const SetupRequired: React.FC = () => {
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-6" style={{ background: 'var(--bg-main)', color: 'var(--text-main)' }}>
       <div className="max-w-lg w-full rounded-2xl border p-8 text-center" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl" style={{ background: 'rgba(34, 95, 65, 0.15)', color: 'var(--accent)' }}>
-          <Sprout size={28} />
-        </div>
+        <LogoMark size="xl" className="mx-auto mb-4" />
         <h1 className="text-2xl font-black mb-2">StrainVerse needs configuration</h1>
         <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
           Supabase environment variables are missing, so the app cannot connect to the database.

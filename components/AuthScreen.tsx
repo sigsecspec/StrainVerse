@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { auth, api, formatSupabaseError } from '../services/supabaseClient';
-import { Loader2, Sprout } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { LogoMark } from './Logo';
 
 interface AuthScreenProps {
   onSuccess: () => void;
@@ -68,9 +69,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   return (
     <div className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl shadow-black/50 relative z-10 overflow-hidden">
       <div className="p-8 text-center border-b border-[var(--border)] bg-[var(--bg-main)]/50 backdrop-blur">
-        <div className="w-14 h-14 bg-[var(--accent)]/20 text-[var(--accent)] rounded-xl flex items-center justify-center border border-[var(--border)] mx-auto mb-4 shadow-[0_0_20px_rgba(34,95,65,0.3)]">
-          <Sprout size={28} />
-        </div>
+        <LogoMark size="xl" className="mx-auto mb-4 shadow-[0_0_20px_rgba(34,95,65,0.3)]" />
         <h1 className="text-2xl font-black text-[var(--text-main)] mb-1 tracking-tight">
           Welcome to StrainVerse
         </h1>
