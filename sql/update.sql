@@ -7,6 +7,15 @@
 
 create schema if not exists "StrainVerse";
 
+-- Fix accidental lowercase schema created by dashboard/tools (strainverse vs StrainVerse)
+do $$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'strainverse')
+     and not exists (select 1 from pg_namespace where nspname = 'StrainVerse') then
+    alter schema strainverse rename to "StrainVerse";
+  end if;
+end $$;
+
 -- Registers a custom schema with PostgREST (Supabase Data API).
 -- Preserves exact schema casing and appends to existing exposed schemas.
 create or replace function public.register_app_schema(app_schema text)
@@ -41,6 +50,17 @@ begin
   end loop;
 
   schema_parts := string_to_array(db_schemas, ',');
+  db_schemas := array_to_string(
+    array(
+      select distinct trim(part)
+      from unnest(schema_parts) as part
+      where trim(part) <> ''
+        and not (lower(trim(part)) = 'strainverse' and app_schema = 'StrainVerse')
+    ),
+    ','
+  );
+
+  schema_parts := string_to_array(db_schemas, ',');
   foreach schema_part in array schema_parts loop
     if trim(schema_part) = app_schema then
       already_listed := true;
@@ -52,6 +72,7 @@ begin
     db_schemas := trim(both ',' from db_schemas || ',' || app_schema);
     execute format('alter role authenticator set pgrst.db_schemas = %L', db_schemas);
     perform pg_notify('pgrst', 'reload config');
+    perform pg_notify('pgrst', 'reload schema');
   end if;
 
   execute format('grant usage on schema %I to anon, authenticated, service_role', app_schema);
@@ -627,3 +648,4 @@ WHERE p.id IS NULL;
 
 -- Register this app schema with the shared Verse Supabase project (case-sensitive: StrainVerse)
 select public.register_app_schema('StrainVerse');
+notify pgrst, 'reload schema';

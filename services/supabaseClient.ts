@@ -81,7 +81,7 @@ const ensureStrainVerseProfile = async (authUser: AuthUser): Promise<{ ok: boole
   };
   if (dob) payload.date_of_birth = dob;
 
-  const { error } = await supabase.from('profiles').insert([payload]);
+  const { error } = await strainVerse().from('profiles').insert([payload]);
   if (error) {
     console.error('Error ensuring StrainVerse profile:', error);
     return { ok: false, error: error.message };
@@ -104,13 +104,11 @@ if (!isSupabaseConfigured) {
 
 export const supabase = createClient(
   SUPABASE_URL || 'https://placeholder.supabase.co',
-  SUPABASE_PUBLISHABLE_KEY || 'placeholder',
-  {
-    db: {
-      schema: 'StrainVerse',
-    },
-  }
+  SUPABASE_PUBLISHABLE_KEY || 'placeholder'
 );
+
+export const STRAINVERSE_SCHEMA = 'StrainVerse';
+export const strainVerse = () => supabase.schema(STRAINVERSE_SCHEMA);
 
 export const auth = {
     signIn: async (email: string, password: string) => {
@@ -211,7 +209,7 @@ export const api = {
       payload.date_of_birth = dob;
     }
     
-    const { error } = await supabase.from('profiles').insert([payload]);
+    const { error } = await strainVerse().from('profiles').insert([payload]);
     if (error) {
       console.error("Error creating profile:", error);
       return { ok: false, error: error.message };
@@ -223,7 +221,7 @@ export const api = {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
 
-    let { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+    let { data, error } = await strainVerse().from('profiles').select('*').eq('id', session.user.id).maybeSingle();
     
     if (error || !data) {
         console.warn("Profile missing for authenticated user. Provisioning StrainVerse profile...");
@@ -232,7 +230,7 @@ export const api = {
             console.error("Failed to provision profile:", provision.error);
             return null;
         }
-        const retry = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        const retry = await strainVerse().from('profiles').select('*').eq('id', session.user.id).single();
         if (retry.error || !retry.data) {
             console.error("Failed to load profile after provisioning:", retry.error);
             return null;
@@ -292,7 +290,7 @@ export const api = {
   },
   
   updateUserLocation: async (userId: string, lat: number, lng: number, radius: number) => {
-      await supabase.from('profiles').update({ latitude: lat, longitude: lng, distance_radius: radius }).eq('id', userId);
+      await strainVerse().from('profiles').update({ latitude: lat, longitude: lng, distance_radius: radius }).eq('id', userId);
   },
 
   uploadImage: async (file: File): Promise<string | null> => {
@@ -310,7 +308,7 @@ export const api = {
   getFriendIds: async(userId: string): Promise<string[]> => {
       const orFilter = `and(user_1_id.eq.${userId},status.eq.ACCEPTED,type.eq.FRIEND),and(user_2_id.eq.${userId},status.eq.ACCEPTED,type.eq.FRIEND)`;
       
-      const { data, error } = await supabase.from('relationships')
+      const { data, error } = await strainVerse().from('relationships')
         .select('user_1_id, user_2_id')
         .or(orFilter);
       
@@ -354,7 +352,7 @@ export const api = {
     const currentUserId = session?.user?.id;
     if (!currentUserId) return [];
 
-    let query = supabase.from('posts').select(`*, profiles!inner (name, avatar, city, state, status), post_reactions (type, user_id)`).order('created_at', { ascending: false });
+    let query = strainVerse().from('posts').select(`*, profiles!inner (name, avatar, city, state, status), post_reactions (type, user_id)`).order('created_at', { ascending: false });
 
     if (viewType === 'HIGHLINE') {
         query = query.eq('visibility', 'HIGHLINE').eq('is_matchit', false);
@@ -435,7 +433,7 @@ export const api = {
   },
   
   getPostsForUser: async (userId: string): Promise<Post[]> => {
-    const { data, error } = await supabase.from('posts').select(`*, profiles (name, avatar), post_reactions (type, user_id)`).eq('user_id', userId).order('created_at', { ascending: false });
+    const { data, error } = await strainVerse().from('posts').select(`*, profiles (name, avatar), post_reactions (type, user_id)`).eq('user_id', userId).order('created_at', { ascending: false });
     if(error) return [];
     return data.map(p => {
         const reactionsMap: Record<string, number> = {};
@@ -457,7 +455,7 @@ export const api = {
 
     const payload: any = { user_id: userId, content, image: image || null, visibility, latitude: lat, longitude: lng, strain: strain || null, high_level: highLevel || 0, soundtrack: soundtrack || null, is_matchit: isMatchIt || false, mood: mood || null, match_looking_for: matchLookingFor || null, match_expires_at: matchExpiresAt || null };
     if (groupId) payload.group_id = groupId;
-    const { error } = await supabase.from('posts').insert([payload]);
+    const { error } = await strainVerse().from('posts').insert([payload]);
     if (error) throw error;
   },
 
@@ -508,17 +506,17 @@ export const api = {
   },
 
   toggleReaction: async (postId: string, userId: string, type: ReactionType) => {
-      const { data: existing } = await supabase.from('post_reactions').select('id, type').eq('post_id', postId).eq('user_id', userId).single();
+      const { data: existing } = await strainVerse().from('post_reactions').select('id, type').eq('post_id', postId).eq('user_id', userId).single();
       if (existing) {
-          if (existing.type === type) await supabase.from('post_reactions').delete().eq('id', existing.id);
-          else await supabase.from('post_reactions').update({ type }).eq('id', existing.id);
+          if (existing.type === type) await strainVerse().from('post_reactions').delete().eq('id', existing.id);
+          else await strainVerse().from('post_reactions').update({ type }).eq('id', existing.id);
       } else {
-          await supabase.from('post_reactions').insert({ post_id: postId, user_id: userId, type });
+          await strainVerse().from('post_reactions').insert({ post_id: postId, user_id: userId, type });
       }
   },
 
   reportPost: async (reporterId: string, reportedUserId: string, postId: string, category: ReportCategory, reason: string) => {
-      const { error } = await supabase.from('reports').insert({
+      const { error } = await strainVerse().from('reports').insert({
           reporter_id: reporterId,
           reported_user_id: reportedUserId,
           post_id: postId,
@@ -532,7 +530,7 @@ export const api = {
   },
 
   blockUser: async (blockerId: string, blockedId: string) => {
-      const { error } = await supabase.from('blocks').insert({
+      const { error } = await strainVerse().from('blocks').insert({
           blocker_id: blockerId,
           blocked_id: blockedId,
       });
@@ -543,7 +541,7 @@ export const api = {
   },
 
   getAllGroups: async (): Promise<Group[]> => {
-    const { data, error } = await supabase.from('groups').select('*');
+    const { data, error } = await strainVerse().from('groups').select('*');
     if (error) return [];
     return data.map(g => ({
         id: g.id,
@@ -571,36 +569,36 @@ export const api = {
   },
 
   getGroupDetails: async (groupId: string): Promise<Group | null> => {
-    const { data: group } = await supabase.from('groups').select('*').eq('id', groupId).single();
+    const { data: group } = await strainVerse().from('groups').select('*').eq('id', groupId).single();
     if (!group) return null;
-    const { data: messages } = await supabase.from('messages').select('*, profiles(name)').eq('group_id', groupId).order('created_at', { ascending: true });
+    const { data: messages } = await strainVerse().from('messages').select('*, profiles(name)').eq('group_id', groupId).order('created_at', { ascending: true });
     const mappedMessages = (messages || []).map(m => ({ id: m.id, userId: m.user_id, userName: m.profiles?.name || 'User', text: m.text, timestamp: new Date(m.created_at).getTime() }));
     return { ...group, messages: mappedMessages };
   },
   
   sendMessage: async (groupId: string, userId: string, text: string) => {
-    await supabase.from('messages').insert([{ group_id: groupId, user_id: userId, text }]);
+    await strainVerse().from('messages').insert([{ group_id: groupId, user_id: userId, text }]);
   },
 
   reportAreaSafety: async (userId: string, lat: number, lng: number, status: 'HOT' | 'CHILL') => {
-    const { error } = await supabase.from('safety_reports').insert([{ user_id: userId, latitude: lat, longitude: lng, status }]);
+    const { error } = await strainVerse().from('safety_reports').insert([{ user_id: userId, latitude: lat, longitude: lng, status }]);
     if (error) console.error("Safety report error:", error);
   },
 
   getAreaSafety: async (lat: number, lng: number, radius: number): Promise<SafetyReport[]> => {
-      const { data, error } = await supabase.from('safety_reports').select('*').order('created_at', { ascending: false }).limit(50);
+      const { data, error } = await strainVerse().from('safety_reports').select('*').order('created_at', { ascending: false }).limit(50);
       if (error) return [];
       return (data || []).map(r => ({ id: r.id, latitude: r.latitude, longitude: r.longitude, status: r.status, timestamp: new Date(r.created_at).getTime() }));
   },
   
   getGrowPlants: async (userId: string): Promise<GrowPlant[]> => {
-    const { data, error } = await supabase.from('grow_plants').select('*').eq('user_id', userId);
+    const { data, error } = await strainVerse().from('grow_plants').select('*').eq('user_id', userId);
     if(error) return [];
     return data as GrowPlant[];
   },
 
   addGrowPlant: async (userId: string, plant: Omit<GrowPlant, 'id' | 'user_id'>) => {
-    const { error } = await supabase.from('grow_plants').insert([{...plant, user_id: userId}]);
+    const { error } = await strainVerse().from('grow_plants').insert([{...plant, user_id: userId}]);
     if(error) console.error('Error adding plant', error);
   },
 
@@ -617,7 +615,7 @@ export const api = {
   },
 
   createStory: async (userId: string, imageUrl: string, strainName?: string, highLevel?: number): Promise<Story | null> => {
-      const { data, error } = await supabase.from('stories').insert([{
+      const { data, error } = await strainVerse().from('stories').insert([{
           user_id: userId,
           image_url: imageUrl,
           strain_name: strainName,
@@ -640,7 +638,7 @@ export const api = {
   },
 
   getStories: async(): Promise<Story[]> => {
-    const { data, error } = await supabase.from('stories').select('*, profiles(name, avatar)').order('created_at', {ascending: false}).limit(20);
+    const { data, error } = await strainVerse().from('stories').select('*, profiles(name, avatar)').order('created_at', {ascending: false}).limit(20);
     if(error) return [];
     return data.map(s => ({
         id: s.id,
@@ -654,7 +652,7 @@ export const api = {
   },
   
   getLeaderboard: async(): Promise<GameScore[]> => {
-    const { data, error } = await supabase.from('game_scores').select('*, profiles(name, avatar)').order('score', {ascending: false}).limit(10);
+    const { data, error } = await strainVerse().from('game_scores').select('*, profiles(name, avatar)').order('score', {ascending: false}).limit(10);
     if(error) return [];
     return data.map(s => ({
         id: s.id,
@@ -669,7 +667,7 @@ export const api = {
   // --- MatchIt Vibe System ---
   sendVibe: async (postId: string, senderId: string, receiverId: string, message: string | null, type: 'TAP' | 'SPARK'): Promise<{ interaction: MatchItInteraction | null, mutualMatch: Group | null }> => {
     // Check for existing interaction
-    const { data: existing, error: selectError } = await supabase.from('matchit_interactions')
+    const { data: existing, error: selectError } = await strainVerse().from('matchit_interactions')
         .select('id').eq('post_id', postId).eq('sender_id', senderId)
 
     if (selectError) {
@@ -680,7 +678,7 @@ export const api = {
         throw new Error("You've already sent a vibe to this post.");
     }
     
-    const { data, error } = await supabase.from('matchit_interactions').insert({
+    const { data, error } = await strainVerse().from('matchit_interactions').insert({
         post_id: postId,
         sender_id: senderId,
         receiver_id: receiverId,
@@ -701,7 +699,7 @@ export const api = {
 
     let mutualMatch: Group | null = null;
     if (type === 'SPARK') {
-        const { data: mutual } = await supabase.from('matchit_interactions').select('id, post_id')
+        const { data: mutual } = await strainVerse().from('matchit_interactions').select('id, post_id')
             .eq('sender_id', receiverId)
             .eq('receiver_id', senderId)
             .eq('type', 'SPARK')
@@ -713,7 +711,7 @@ export const api = {
             const matchGroup = await api.createMatchChat(senderId, receiverId);
             if(matchGroup) {
                 // Update both interactions
-                await supabase.from('matchit_interactions').update({ status: 'MATCHED', group_id: matchGroup.id }).or(`id.eq.${data.id},id.eq.${mutual.id}`);
+                await strainVerse().from('matchit_interactions').update({ status: 'MATCHED', group_id: matchGroup.id }).or(`id.eq.${data.id},id.eq.${mutual.id}`);
                 mutualMatch = matchGroup;
             }
         }
@@ -722,14 +720,14 @@ export const api = {
   },
 
   createMatchChat: async (user1Id: string, user2Id: string): Promise<Group | null> => {
-      const { data: users, error: usersError } = await supabase.from('profiles').select('name').in('id', [user1Id, user2Id]);
+      const { data: users, error: usersError } = await strainVerse().from('profiles').select('name').in('id', [user1Id, user2Id]);
       if(usersError || users.length < 2) {
         console.error("Couldn't fetch users for match chat name", usersError);
         return null;
       }
       
       const groupName = `${users[0].name} & ${users[1].name}'s Sesh`;
-      const { data: group, error } = await supabase.from('groups').insert({
+      const { data: group, error } = await strainVerse().from('groups').insert({
           name: groupName,
           description: 'A match from MatchIt!',
           type: 'MATCH',
@@ -747,7 +745,7 @@ export const api = {
       if (response === 'MATCHED') {
           const matchGroup = await api.createMatchChat(senderId, receiverId);
           if (matchGroup) {
-              const { error } = await supabase.from('matchit_interactions').update({ status: 'MATCHED', group_id: matchGroup.id }).eq('id', interactionId);
+              const { error } = await strainVerse().from('matchit_interactions').update({ status: 'MATCHED', group_id: matchGroup.id }).eq('id', interactionId);
               if (error) {
                   console.error("Error updating interaction status:", error);
                   // Should probably delete the created group if this fails...
@@ -756,7 +754,7 @@ export const api = {
               return matchGroup;
           }
       } else {
-          const { error } = await supabase.from('matchit_interactions').update({ status: 'DECLINED' }).eq('id', interactionId);
+          const { error } = await strainVerse().from('matchit_interactions').update({ status: 'DECLINED' }).eq('id', interactionId);
           if (error) {
               console.error("Error declining vibe:", error);
           }
@@ -790,7 +788,7 @@ export const api = {
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
 
-      const { data: strainsData, error: strainsError } = await supabase.from('strains_with_stats').select('*');
+      const { data: strainsData, error: strainsError } = await strainVerse().from('strains_with_stats').select('*');
       if (strainsError) {
           console.error("Error fetching strains:", strainsError);
           return [];
@@ -798,7 +796,7 @@ export const api = {
       
       let userLogs: any[] = [];
       if (userId) {
-          const { data: logData, error: logError } = await supabase.from('user_strain_log').select('strain_id, type').eq('user_id', userId);
+          const { data: logData, error: logError } = await strainVerse().from('user_strain_log').select('strain_id, type').eq('user_id', userId);
           if (logError) {
               console.error("Error fetching user strain logs:", logError);
           } else {
@@ -861,7 +859,7 @@ export const api = {
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
     
-      const { data, error } = await supabase.from('strains').select('*').eq('id', id).single();
+      const { data, error } = await strainVerse().from('strains').select('*').eq('id', id).single();
       if (error) {
           console.error("Error fetching strain by ID:", error);
           return null;
@@ -870,7 +868,7 @@ export const api = {
       let strainData = data as Strain;
 
       if (userId) {
-        const { data: logData, error: logError } = await supabase.from('user_strain_log')
+        const { data: logData, error: logError } = await strainVerse().from('user_strain_log')
             .select('type')
             .eq('user_id', userId)
             .eq('strain_id', id);
@@ -885,7 +883,7 @@ export const api = {
   },
   
   getStrainPhotos: async (strainId: string, form: 'FLOWER' | 'CONCENTRATE'): Promise<StrainPhoto[]> => {
-      const { data, error } = await supabase.from('strain_photos').select('*, profiles(name, avatar)').eq('strain_id', strainId).eq('form', form).order('created_at', { ascending: false });
+      const { data, error } = await strainVerse().from('strain_photos').select('*, profiles(name, avatar)').eq('strain_id', strainId).eq('form', form).order('created_at', { ascending: false });
       if (error) return [];
       return data.map(p => ({
           ...p,
@@ -895,7 +893,7 @@ export const api = {
   },
 
   getStrainReviews: async (strainId: string, form: 'FLOWER' | 'CONCENTRATE'): Promise<StrainReview[]> => {
-      const { data, error } = await supabase.from('strain_reviews').select('*, profiles(name, avatar)').eq('strain_id', strainId).eq('form', form).order('created_at', { ascending: false });
+      const { data, error } = await strainVerse().from('strain_reviews').select('*, profiles(name, avatar)').eq('strain_id', strainId).eq('form', form).order('created_at', { ascending: false });
       if (error) return [];
       return data.map(r => ({
           ...r,
@@ -905,7 +903,7 @@ export const api = {
   },
 
   getStrainChatMessages: async (strainId: string, form: 'FLOWER' | 'CONCENTRATE'): Promise<StrainChatMessage[]> => {
-      const { data, error } = await supabase.from('strain_chat_messages').select('*, profiles(name)').eq('strain_id', strainId).eq('form', form).order('created_at', { ascending: true }).limit(100);
+      const { data, error } = await strainVerse().from('strain_chat_messages').select('*, profiles(name)').eq('strain_id', strainId).eq('form', form).order('created_at', { ascending: true }).limit(100);
       if (error) return [];
       return data.map(m => ({
           ...m,
@@ -914,7 +912,7 @@ export const api = {
   },
 
   addStrainReview: async (strainId: string, userId: string, rating: number, text: string, form: 'FLOWER' | 'CONCENTRATE'): Promise<StrainReview> => {
-      const { data, error } = await supabase.from('strain_reviews').upsert({
+      const { data, error } = await strainVerse().from('strain_reviews').upsert({
           strain_id: strainId,
           user_id: userId,
           rating: rating,
@@ -949,7 +947,7 @@ export const api = {
   },
 
   addStrainPhoto: async (strainId: string, userId: string, imageUrl: string, form: 'FLOWER' | 'CONCENTRATE', brand?: string): Promise<StrainPhoto | null> => {
-      const { data, error } = await supabase.from('strain_photos').insert({
+      const { data, error } = await strainVerse().from('strain_photos').insert({
           strain_id: strainId,
           user_id: userId,
           image_url: imageUrl,
@@ -969,21 +967,21 @@ export const api = {
   },
   
   toggleStrainLog: async (userId: string, strainId: string, type: 'SMOKED' | 'DABBED') => {
-      const { data: existing, error } = await supabase.from('user_strain_log').select('id').eq('user_id', userId).eq('strain_id', strainId).eq('type', type).single();
+      const { data: existing, error } = await strainVerse().from('user_strain_log').select('id').eq('user_id', userId).eq('strain_id', strainId).eq('type', type).single();
       if (error && error.code !== 'PGRST116') { // PGRST116 is "exact one row not found"
           console.error('Error checking strain log:', error);
           return;
       }
       
       if (existing) {
-          await supabase.from('user_strain_log').delete().eq('id', existing.id);
+          await strainVerse().from('user_strain_log').delete().eq('id', existing.id);
       } else {
-          await supabase.from('user_strain_log').insert({ user_id: userId, strain_id: strainId, type });
+          await strainVerse().from('user_strain_log').insert({ user_id: userId, strain_id: strainId, type });
       }
   },
   
   sendStrainChatMessage: async(strainId: string, userId: string, message: string, form: 'FLOWER' | 'CONCENTRATE'): Promise<StrainChatMessage | null> => {
-      const { data, error } = await supabase.from('strain_chat_messages').insert({
+      const { data, error } = await strainVerse().from('strain_chat_messages').insert({
           strain_id: strainId,
           user_id: userId,
           message: message,

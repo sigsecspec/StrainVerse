@@ -6,5 +6,8 @@
 -- Run that file in the Supabase SQL Editor to (re)provision the "StrainVerse" schema,
 -- tables, RLS policies, views, triggers, and storage policies.
 --
+-- If sign-in fails with "could not find table strainverse.profiles", run instead:
+--   sql/fix_profiles_table.sql
+--
 -- sql.txt contains an earlier, standalone-project version of the same schema and is kept
 -- for historical reference only; prefer sql/update.sql for setup.
