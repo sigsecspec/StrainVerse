@@ -1,15 +1,8 @@
--- Quick fix: "could not find table strainverse.profiles"
--- Run this entire file in Supabase SQL Editor.
--- Schema name must be "StrainVerse" (capital S and V), not strainverse.
-
--- Fix accidental lowercase schema from dashboard/tools
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'strainverse')
-     AND NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'StrainVerse') THEN
-    ALTER SCHEMA strainverse RENAME TO "StrainVerse";
-  END IF;
-END $$;
+-- Drop legacy `strain` schema and switch to canonical "StrainVerse"
+-- Run this in Supabase SQL Editor FIRST, then run sql/update.sql
+--
+-- Old setup used schema: strain  (wrong)
+-- App expects schema:  StrainVerse (correct, case-sensitive)
 
 CREATE SCHEMA IF NOT EXISTS "StrainVerse";
 
@@ -73,11 +66,16 @@ BEGIN
 
   EXECUTE format('GRANT USAGE ON SCHEMA %I TO anon, authenticated, service_role', app_schema);
   EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA %I TO anon, authenticated, service_role', app_schema);
+  EXECUTE format('GRANT ALL ON ALL SEQUENCES IN SCHEMA %I TO anon, authenticated, service_role', app_schema);
+  EXECUTE format('GRANT ALL ON ALL ROUTINES IN SCHEMA %I TO anon, authenticated, service_role', app_schema);
 
   RETURN db_schemas;
 END;
 $$;
 
+GRANT EXECUTE ON FUNCTION public.register_app_schema(text) TO authenticated, service_role;
+
+-- Minimal profiles table so we can migrate users before dropping legacy schema
 CREATE TABLE IF NOT EXISTS "StrainVerse".profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   name text NOT NULL,
@@ -101,24 +99,78 @@ CREATE TABLE IF NOT EXISTS "StrainVerse".profiles (
 );
 
 ALTER TABLE "StrainVerse".profiles ENABLE ROW LEVEL SECURITY;
-
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone." ON "StrainVerse".profiles;
 CREATE POLICY "Public profiles are viewable by everyone." ON "StrainVerse".profiles
   FOR SELECT USING (true);
-
 DROP POLICY IF EXISTS "Users can insert their own profile." ON "StrainVerse".profiles;
 CREATE POLICY "Users can insert their own profile." ON "StrainVerse".profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
-
 DROP POLICY IF EXISTS "Users can update their own profile." ON "StrainVerse".profiles;
 CREATE POLICY "Users can update their own profile." ON "StrainVerse".profiles
   FOR UPDATE USING (auth.uid() = id);
 
-GRANT USAGE ON SCHEMA "StrainVerse" TO anon, authenticated, service_role;
-GRANT SELECT, INSERT, UPDATE, DELETE ON "StrainVerse".profiles TO authenticated, service_role;
-GRANT SELECT ON "StrainVerse".profiles TO anon;
+-- Copy any user profiles from legacy strain schema before drop
+DO $$
+BEGIN
+  IF to_regclass('strain.profiles') IS NOT NULL THEN
+    INSERT INTO "StrainVerse".profiles (id, name, handle, avatar, bio)
+    SELECT
+      p.id,
+      p.name,
+      p.handle,
+      p.avatar,
+      COALESCE(p.bio, 'Ready to connect.')
+    FROM strain.profiles p
+    ON CONFLICT (id) DO NOTHING;
 
--- Backfill profiles for existing auth users (Cookbook / shared Verse accounts)
+    RAISE NOTICE 'Migrated profiles from strain -> StrainVerse';
+  END IF;
+EXCEPTION
+  WHEN undefined_column THEN
+    RAISE NOTICE 'strain.profiles has different columns; skipped profile migration';
+END $$;
+
+-- Remove legacy schemas from Supabase Data API before dropping them
+DO $$
+DECLARE
+  config_entry text;
+  db_schemas text := 'public';
+  cleaned text;
+BEGIN
+  FOR config_entry IN
+    SELECT unnest(rolconfig) FROM pg_roles WHERE rolname = 'authenticator'
+  LOOP
+    IF config_entry LIKE 'pgrst.db_schemas=%' THEN
+      db_schemas := substring(config_entry FROM 'pgrst.db_schemas=(.*)$');
+    END IF;
+  END LOOP;
+
+  cleaned := array_to_string(
+    ARRAY(
+      SELECT trim(part)
+      FROM unnest(string_to_array(db_schemas, ',')) AS part
+      WHERE trim(part) <> ''
+        AND lower(trim(part)) NOT IN ('strain', 'strainverse')
+    ),
+    ','
+  );
+
+  EXECUTE format('ALTER ROLE authenticator SET pgrst.db_schemas = %L', cleaned);
+  PERFORM pg_notify('pgrst', 'reload config');
+  PERFORM pg_notify('pgrst', 'reload schema');
+
+  RAISE NOTICE 'Removed strain/strainverse from Data API. Current schemas: %', cleaned;
+END $$;
+
+-- Drop the old schema (and everything in it)
+DROP SCHEMA IF EXISTS strain CASCADE;
+DROP SCHEMA IF EXISTS strainverse CASCADE;
+
+-- Register canonical schema with the Data API
+SELECT public.register_app_schema('StrainVerse');
+NOTIFY pgrst, 'reload schema';
+
+-- Backfill any auth users still missing profiles
 INSERT INTO "StrainVerse".profiles (id, name, handle, avatar, bio)
 SELECT
   au.id,
@@ -134,11 +186,18 @@ LEFT JOIN "StrainVerse".profiles p ON au.id = p.id
 WHERE p.id IS NULL
 ON CONFLICT (id) DO NOTHING;
 
--- Expose schema to Supabase Data API (requires register_app_schema from sql/update.sql)
-SELECT public.register_app_schema('StrainVerse');
-NOTIFY pgrst, 'reload schema';
+GRANT USAGE ON SCHEMA "StrainVerse" TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "StrainVerse" TO authenticated, service_role;
+GRANT SELECT ON ALL TABLES IN SCHEMA "StrainVerse" TO anon;
 
--- Verify (should return one row)
+-- Verify: strain should be gone, StrainVerse.profiles should exist
+SELECT nspname AS schema_name
+FROM pg_namespace
+WHERE nspname IN ('strain', 'strainverse', 'StrainVerse')
+ORDER BY nspname;
+
 SELECT schemaname, tablename
 FROM pg_tables
 WHERE schemaname = 'StrainVerse' AND tablename = 'profiles';
+
+-- NEXT STEP: run the full sql/update.sql to create posts, strains, and all other tables.

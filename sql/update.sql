@@ -1,7 +1,8 @@
 -- StrainVerse Database Schema (shared Verse Supabase project)
 -- Run in Supabase SQL Editor on https://vxahlxhrmypxxkrudqbd.supabase.co
 --
--- IMPORTANT: Schema name is case-sensitive: "StrainVerse" (not strainverse).
+-- IMPORTANT: Schema name is case-sensitive: "StrainVerse" (not strain or strainverse).
+-- If you still have the old `strain` schema, run sql/drop_strain_schema.sql FIRST.
 -- After this script runs, verify Dashboard -> Project Settings -> Data API ->
 -- Exposed schemas includes StrainVerse alongside public/Cookbook/etc.
 
@@ -55,7 +56,10 @@ begin
       select distinct trim(part)
       from unnest(schema_parts) as part
       where trim(part) <> ''
-        and not (lower(trim(part)) = 'strainverse' and app_schema = 'StrainVerse')
+        and not (
+          app_schema = 'StrainVerse'
+          and lower(trim(part)) in ('strain', 'strainverse')
+        )
     ),
     ','
   );
@@ -114,6 +118,22 @@ drop policy if exists "Users can insert their own profile." on "StrainVerse".pro
 create policy "Users can insert their own profile." on "StrainVerse".profiles for insert with check (auth.uid() = id);
 drop policy if exists "Users can update their own profile." on "StrainVerse".profiles;
 create policy "Users can update their own profile." on "StrainVerse".profiles for update using (auth.uid() = id);
+
+-- Migrate from and drop legacy `strain` schema (wrong name from early setup)
+do $$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'strain') then
+    if to_regclass('strain.profiles') is not null then
+      insert into "StrainVerse".profiles (id, name, handle, avatar, bio)
+      select p.id, p.name, p.handle, p.avatar, coalesce(p.bio, 'Ready to connect.')
+      from strain.profiles p
+      on conflict (id) do nothing;
+      raise notice 'Migrated profiles from strain -> StrainVerse';
+    end if;
+    execute 'drop schema strain cascade';
+    raise notice 'Dropped legacy schema: strain';
+  end if;
+end $$;
 
 -- 2. Posts Table
 create table if not exists "StrainVerse".posts (

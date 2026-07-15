@@ -9,5 +9,8 @@
 -- If sign-in fails with "could not find table strainverse.profiles", run instead:
 --   sql/fix_profiles_table.sql
 --
+-- If you still have the old `strain` schema, run FIRST:
+--   sql/drop_strain_schema.sql
+--
 -- sql.txt contains an earlier, standalone-project version of the same schema and is kept
 -- for historical reference only; prefer sql/update.sql for setup.
