@@ -69,7 +69,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   return (
     <div className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl shadow-black/50 relative z-10 overflow-hidden">
       <div className="p-8 text-center border-b border-[var(--border)] bg-[var(--bg-main)]/50 backdrop-blur">
-        <LogoMark size="xl" className="mx-auto mb-4 shadow-[0_0_20px_rgba(34,95,65,0.3)]" />
+        <LogoMark size="xl" className="mx-auto mb-4" />
         <h1 className="text-2xl font-black text-[var(--text-main)] mb-1 tracking-tight">
           Welcome to StrainVerse
         </h1>

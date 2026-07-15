@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -20,4 +21,6 @@ for (const { name, size } of sizes) {
   await sharp(svg).resize(size, size).png().toFile(resolve(publicDir, name));
 }
 
-console.log('Generated StrainVerse PNG icons in public/ (favicon.ico is committed separately).');
+execSync('python3 scripts/generate-favicon-ico.py', { stdio: 'inherit' });
+
+console.log('Generated StrainVerse icons in public/.');
